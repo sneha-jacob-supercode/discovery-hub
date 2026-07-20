@@ -25,7 +25,7 @@ const EMPTY_QUESTIONNAIRE: Questionnaire = {
 };
 
 export default function LandingPage() {
-  const { clients, isHydrated, createClient } = useClientStore();
+  const { clients, isHydrated, createClient, setClientPassword } = useClientStore();
   const { questionnaires, getQuestionnaire, isHydrated: questionnairesHydrated } = useQuestionnaireStore();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -44,10 +44,21 @@ export default function LandingPage() {
     });
   }, [clients, query, statusFilter, getQuestionnaire]);
 
-  function handleCreateClient(questionnaireId: string, name: string) {
-    const client = createClient(questionnaireId, name);
+  async function handleCreateClient(
+    questionnaireId: string,
+    name: string,
+    contactEmails: string[],
+    password: string
+  ) {
+    const client = await createClient(questionnaireId, name, contactEmails);
+    try {
+      await setClientPassword(client.id, password);
+    } catch {
+      // createClient already succeeded and the client is on the list — the
+      // password can be regenerated from "Manage Access" if this failed.
+    }
     setShowNewClientDialog(false);
-    router.push(`/client/${client.id}`);
+    router.push(`/dashboard/clients/${client.id}`);
   }
 
   const ready = isHydrated && questionnairesHydrated;

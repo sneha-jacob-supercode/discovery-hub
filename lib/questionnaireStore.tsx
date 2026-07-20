@@ -6,19 +6,11 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
-import { Question, Questionnaire } from "./types";
-import { SEED_QUESTIONNAIRES, QUESTIONNAIRE_SEED_VERSION } from "./questionnaireSeed";
+import { FieldType, Question, Questionnaire } from "./types";
 import { reorderWithinSection, reorderSections } from "./questions";
-
-const STORAGE_KEY = "client-intake-prototype:questionnaires:v1";
-
-interface StoredEnvelope {
-  seedVersion: number;
-  questionnaires: Questionnaire[];
-}
+import { supabase } from "./supabaseClient";
 
 function nowIso() {
   return new Date().toISOString();
@@ -33,20 +25,75 @@ function slugify(name: string) {
   return `${base || "questionnaire"}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+interface QuestionRow {
+  id: string;
+  questionnaire_id: string | null;
+  client_id: string | null;
+  section: string;
+  label: string;
+  field_type: FieldType;
+  is_repeatable: boolean;
+  options: string[] | null;
+  placeholder: string | null;
+  is_custom: boolean;
+  order_index: number;
+}
+
+interface QuestionnaireRow {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  last_updated: string;
+}
+
+function rowToQuestion(row: QuestionRow): Question {
+  return {
+    id: row.id,
+    section: row.section,
+    label: row.label,
+    field_type: row.field_type,
+    is_repeatable: row.is_repeatable,
+    options: row.options ?? undefined,
+    placeholder: row.placeholder ?? undefined,
+    is_custom: row.is_custom,
+  };
+}
+
+function questionToInsertRow(
+  question: Question,
+  owner: { questionnaire_id: string | null; client_id: string | null },
+  orderIndex: number
+) {
+  return {
+    id: question.id,
+    questionnaire_id: owner.questionnaire_id,
+    client_id: owner.client_id,
+    section: question.section,
+    label: question.label,
+    field_type: question.field_type,
+    is_repeatable: question.is_repeatable,
+    options: question.options ?? null,
+    placeholder: question.placeholder ?? null,
+    is_custom: question.is_custom ?? owner.client_id !== null,
+    order_index: orderIndex,
+  };
+}
+
 interface QuestionnaireStoreValue {
   questionnaires: Questionnaire[];
   isHydrated: boolean;
   getQuestionnaire: (id: string) => Questionnaire | undefined;
-  createQuestionnaire: (name: string) => Questionnaire;
-  addQuestion: (questionnaireId: string, question: Omit<Question, "id">) => Question;
+  createQuestionnaire: (name: string) => Promise<Questionnaire>;
+  addQuestion: (questionnaireId: string, question: Omit<Question, "id">) => Promise<Question>;
   updateQuestion: (
     questionnaireId: string,
     questionId: string,
     patch: Partial<Omit<Question, "id">>
-  ) => void;
-  removeQuestion: (questionnaireId: string, questionId: string) => void;
-  moveQuestion: (questionnaireId: string, questionId: string, direction: "up" | "down") => void;
-  moveSection: (questionnaireId: string, section: string, direction: "up" | "down") => void;
+  ) => Promise<void>;
+  removeQuestion: (questionnaireId: string, questionId: string) => Promise<void>;
+  moveQuestion: (questionnaireId: string, questionId: string, direction: "up" | "down") => Promise<void>;
+  moveSection: (questionnaireId: string, section: string, direction: "up" | "down") => Promise<void>;
 }
 
 const QuestionnaireStoreContext = createContext<QuestionnaireStoreValue | null>(null);
@@ -59,48 +106,66 @@ function updateQuestionnaireList(
   return list.map((q) => (q.id === id ? patch(q) : q));
 }
 
+async function persistOrder(questions: Question[]) {
+  await Promise.all(
+    questions.map((q, i) =>
+      supabase
+        .from("questions")
+        .update({ order_index: (i + 1) * 10 })
+        .eq("id", q.id)
+    )
+  );
+}
+
 export function QuestionnaireStoreProvider({ children }: { children: React.ReactNode }) {
-  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>(SEED_QUESTIONNAIRES);
+  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
-  const hasHydratedFromStorage = useRef(false);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoredEnvelope | Questionnaire[];
-        // Old un-versioned format (bare array) or a stale seed version both
-        // count as stale — fall through and keep the fresh seed default.
-        if (
-          !Array.isArray(parsed) &&
-          parsed.seedVersion === QUESTIONNAIRE_SEED_VERSION &&
-          Array.isArray(parsed.questionnaires) &&
-          parsed.questionnaires.length > 0
-        ) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setQuestionnaires(parsed.questionnaires);
-        }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [{ data: qRows, error: qError }, { data: questionRows, error: questionError }] =
+          await Promise.all([
+            supabase.from("questionnaires").select("*").order("created_at"),
+            supabase
+              .from("questions")
+              .select("*")
+              .not("questionnaire_id", "is", null)
+              .order("order_index"),
+          ]);
+        if (qError) throw qError;
+        if (questionError) throw questionError;
+
+        const assembled: Questionnaire[] = ((qRows ?? []) as QuestionnaireRow[]).map((row) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description ?? undefined,
+          created_at: row.created_at,
+          last_updated: row.last_updated,
+          questions: ((questionRows ?? []) as QuestionRow[])
+            .filter((q) => q.questionnaire_id === row.id)
+            .map(rowToQuestion),
+        }));
+
+        if (!cancelled) setQuestionnaires(assembled);
+      } catch (err) {
+        console.error("Failed to load questionnaires from Supabase", err);
+      } finally {
+        if (!cancelled) setIsHydrated(true);
       }
-    } catch {
-      // ignore malformed storage, fall back to seed data
-    } finally {
-      hasHydratedFromStorage.current = true;
-      setIsHydrated(true);
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    if (!hasHydratedFromStorage.current) return;
-    const envelope: StoredEnvelope = { seedVersion: QUESTIONNAIRE_SEED_VERSION, questionnaires };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
-  }, [questionnaires]);
 
   const getQuestionnaire = useCallback(
     (id: string) => questionnaires.find((q) => q.id === id),
     [questionnaires]
   );
 
-  const createQuestionnaire = useCallback((name: string) => {
+  const createQuestionnaire = useCallback(async (name: string) => {
     const label = name.trim() || "New Questionnaire";
     const questionnaire: Questionnaire = {
       id: slugify(label),
@@ -110,26 +175,66 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       last_updated: nowIso(),
     };
     setQuestionnaires((prev) => [questionnaire, ...prev]);
+    try {
+      const { error } = await supabase.from("questionnaires").insert({
+        id: questionnaire.id,
+        name: questionnaire.name,
+        description: questionnaire.description ?? null,
+        created_at: questionnaire.created_at,
+        last_updated: questionnaire.last_updated,
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to create questionnaire", err);
+      setQuestionnaires((prev) => prev.filter((q) => q.id !== questionnaire.id));
+    }
     return questionnaire;
   }, []);
 
-  const addQuestion = useCallback((questionnaireId: string, question: Omit<Question, "id">) => {
-    const newQuestion: Question = {
-      ...question,
-      id: `q_${slugify(question.label).replace(/-[a-z0-9]{5}$/, "")}_${Date.now().toString(36).slice(-4)}`,
-    };
-    setQuestionnaires((prev) =>
-      updateQuestionnaireList(prev, questionnaireId, (q) => ({
-        ...q,
-        last_updated: nowIso(),
-        questions: [...q.questions, newQuestion],
-      }))
-    );
-    return newQuestion;
-  }, []);
+  const addQuestion = useCallback(
+    async (questionnaireId: string, question: Omit<Question, "id">) => {
+      const target = questionnaires.find((q) => q.id === questionnaireId);
+      const newQuestion: Question = {
+        ...question,
+        id: `q_${slugify(question.label).replace(/-[a-z0-9]{5}$/, "")}_${Date.now()
+          .toString(36)
+          .slice(-4)}`,
+      };
+      const orderIndex = ((target?.questions.length ?? 0) + 1) * 10;
+      setQuestionnaires((prev) =>
+        updateQuestionnaireList(prev, questionnaireId, (q) => ({
+          ...q,
+          last_updated: nowIso(),
+          questions: [...q.questions, newQuestion],
+        }))
+      );
+      try {
+        const { error } = await supabase
+          .from("questions")
+          .insert(
+            questionToInsertRow(
+              newQuestion,
+              { questionnaire_id: questionnaireId, client_id: null },
+              orderIndex
+            )
+          );
+        if (error) throw error;
+      } catch (err) {
+        console.error("Failed to add question", err);
+        setQuestionnaires((prev) =>
+          updateQuestionnaireList(prev, questionnaireId, (q) => ({
+            ...q,
+            questions: q.questions.filter((existing) => existing.id !== newQuestion.id),
+          }))
+        );
+      }
+      return newQuestion;
+    },
+    [questionnaires]
+  );
 
   const updateQuestion = useCallback(
-    (questionnaireId: string, questionId: string, patch: Partial<Omit<Question, "id">>) => {
+    async (questionnaireId: string, questionId: string, patch: Partial<Omit<Question, "id">>) => {
       setQuestionnaires((prev) =>
         updateQuestionnaireList(prev, questionnaireId, (q) => ({
           ...q,
@@ -139,11 +244,27 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
           ),
         }))
       );
+      try {
+        const { error } = await supabase
+          .from("questions")
+          .update({
+            ...(patch.section !== undefined ? { section: patch.section } : {}),
+            ...(patch.label !== undefined ? { label: patch.label } : {}),
+            ...(patch.field_type !== undefined ? { field_type: patch.field_type } : {}),
+            ...(patch.is_repeatable !== undefined ? { is_repeatable: patch.is_repeatable } : {}),
+            ...(patch.options !== undefined ? { options: patch.options ?? null } : {}),
+            ...(patch.placeholder !== undefined ? { placeholder: patch.placeholder ?? null } : {}),
+          })
+          .eq("id", questionId);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Failed to update question", err);
+      }
     },
     []
   );
 
-  const removeQuestion = useCallback((questionnaireId: string, questionId: string) => {
+  const removeQuestion = useCallback(async (questionnaireId: string, questionId: string) => {
     setQuestionnaires((prev) =>
       updateQuestionnaireList(prev, questionnaireId, (q) => ({
         ...q,
@@ -151,30 +272,55 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
         questions: q.questions.filter((existing) => existing.id !== questionId),
       }))
     );
+    try {
+      const { error } = await supabase.from("questions").delete().eq("id", questionId);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to remove question", err);
+    }
   }, []);
 
   const moveQuestion = useCallback(
-    (questionnaireId: string, questionId: string, direction: "up" | "down") => {
+    async (questionnaireId: string, questionId: string, direction: "up" | "down") => {
+      const target = questionnaires.find((q) => q.id === questionnaireId);
+      if (!target) return;
+      const reordered = reorderWithinSection(target.questions, questionId, direction === "up" ? -1 : 1);
       setQuestionnaires((prev) =>
         updateQuestionnaireList(prev, questionnaireId, (q) => ({
           ...q,
           last_updated: nowIso(),
-          questions: reorderWithinSection(q.questions, questionId, direction === "up" ? -1 : 1),
+          questions: reordered,
         }))
       );
+      try {
+        await persistOrder(reordered);
+      } catch (err) {
+        console.error("Failed to persist question order", err);
+      }
     },
-    []
+    [questionnaires]
   );
 
-  const moveSection = useCallback((questionnaireId: string, section: string, direction: "up" | "down") => {
-    setQuestionnaires((prev) =>
-      updateQuestionnaireList(prev, questionnaireId, (q) => ({
-        ...q,
-        last_updated: nowIso(),
-        questions: reorderSections(q.questions, section, direction === "up" ? -1 : 1),
-      }))
-    );
-  }, []);
+  const moveSection = useCallback(
+    async (questionnaireId: string, section: string, direction: "up" | "down") => {
+      const target = questionnaires.find((q) => q.id === questionnaireId);
+      if (!target) return;
+      const reordered = reorderSections(target.questions, section, direction === "up" ? -1 : 1);
+      setQuestionnaires((prev) =>
+        updateQuestionnaireList(prev, questionnaireId, (q) => ({
+          ...q,
+          last_updated: nowIso(),
+          questions: reordered,
+        }))
+      );
+      try {
+        await persistOrder(reordered);
+      } catch (err) {
+        console.error("Failed to persist section order", err);
+      }
+    },
+    [questionnaires]
+  );
 
   const value = useMemo<QuestionnaireStoreValue>(
     () => ({

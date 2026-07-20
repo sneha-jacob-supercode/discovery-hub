@@ -30,9 +30,11 @@ export interface Answer {
 
 export interface Client {
   id: string;
+  slug: string;
   name: string;
   channel_name?: string;
   meeting_date?: string;
+  contact_emails: string[];
   created_at: string;
   last_updated: string;
   answers: Record<string, Answer>;

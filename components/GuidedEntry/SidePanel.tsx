@@ -58,31 +58,34 @@ interface SidePanelProps {
   client: Client;
   questionnaire: Questionnaire;
   currentId: string | null;
+  mode: "internal" | "public";
   onSelect: (id: string) => void;
-  onAddQuestion: (payload: {
+  onAddQuestion?: (payload: {
     label: string;
     section: string;
     field_type: Question["field_type"];
     is_repeatable: boolean;
   }) => void;
-  onHideQuestion: (id: string) => void;
-  onUnhideQuestion: (id: string) => void;
+  onHideQuestion?: (id: string) => void;
+  onUnhideQuestion?: (id: string) => void;
 }
 
 export function SidePanel({
   client,
   questionnaire,
   currentId,
+  mode,
   onSelect,
   onAddQuestion,
   onHideQuestion,
   onUnhideQuestion,
 }: SidePanelProps) {
+  const isInternal = mode === "internal";
   const [showAddForm, setShowAddForm] = useState(false);
   const [pendingHideId, setPendingHideId] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
   const grouped = questionsBySection(allQuestionsForClient(client, questionnaire));
-  const hidden = hiddenQuestionsForClient(client, questionnaire);
+  const hidden = isInternal ? hiddenQuestionsForClient(client, questionnaire) : [];
 
   return (
     <div className="flex h-full flex-col">
@@ -127,14 +130,16 @@ export function SidePanel({
                         )}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingHideId(q.id)}
-                      aria-label={`Remove "${q.label}" from this client`}
-                      className="shrink-0 rounded-md p-1.5 text-ink-faint opacity-0 transition hover:bg-paper hover:text-warning focus-visible:opacity-100 group-hover/row:opacity-100"
-                    >
-                      <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
+                    {isInternal && (
+                      <button
+                        type="button"
+                        onClick={() => setPendingHideId(q.id)}
+                        aria-label={`Remove "${q.label}" from this client`}
+                        className="shrink-0 rounded-md p-1.5 text-ink-faint opacity-0 transition hover:bg-paper hover:text-warning focus-visible:opacity-100 group-hover/row:opacity-100"
+                      >
+                        <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -168,7 +173,7 @@ export function SidePanel({
                       </span>
                     )}
                     <button
-                      onClick={() => onUnhideQuestion(q.id)}
+                      onClick={() => onUnhideQuestion?.(q.id)}
                       className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-ink-muted hover:text-ink"
                     >
                       <Undo2 className="h-3 w-3" aria-hidden="true" />
@@ -182,39 +187,41 @@ export function SidePanel({
         )}
       </div>
 
-      {pendingHideId && (
+      {isInternal && pendingHideId && (
         <ConfirmDialog
           title={`Remove this question for ${client.name}?`}
           description="This only affects this client — the shared questionnaire template and other clients are unaffected. You can restore it anytime from Hidden Questions below."
           confirmLabel="Remove"
           onCancel={() => setPendingHideId(null)}
           onConfirm={() => {
-            onHideQuestion(pendingHideId);
+            onHideQuestion?.(pendingHideId);
             setPendingHideId(null);
           }}
         />
       )}
 
-      <div className="border-t border-line p-4">
-        {showAddForm ? (
-          <AddQuestionForm
-            sections={grouped.map((g) => g.section)}
-            onCancel={() => setShowAddForm(false)}
-            onSubmit={(payload) => {
-              onAddQuestion(payload);
-              setShowAddForm(false);
-            }}
-          />
-        ) : (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-xs font-medium text-ink-muted outline-hidden transition hover:bg-paper hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-line-strong"
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            Add Question
-          </button>
-        )}
-      </div>
+      {isInternal && (
+        <div className="border-t border-line p-4">
+          {showAddForm ? (
+            <AddQuestionForm
+              sections={grouped.map((g) => g.section)}
+              onCancel={() => setShowAddForm(false)}
+              onSubmit={(payload) => {
+                onAddQuestion?.(payload);
+                setShowAddForm(false);
+              }}
+            />
+          ) : (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-xs font-medium text-ink-muted outline-hidden transition hover:bg-paper hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-line-strong"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Add Question
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

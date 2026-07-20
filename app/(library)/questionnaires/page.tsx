@@ -14,8 +14,8 @@ export default function QuestionnairesPage() {
   const router = useRouter();
   const [showNewDialog, setShowNewDialog] = useState(false);
 
-  function handleCreate(name: string) {
-    const questionnaire = createQuestionnaire(name);
+  async function handleCreate(name: string) {
+    const questionnaire = await createQuestionnaire(name);
     setShowNewDialog(false);
     router.push(`/questionnaires/${questionnaire.id}`);
   }
@@ -65,9 +65,6 @@ export default function QuestionnairesPage() {
                     {formatRelativeTime(q.last_updated)}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full border border-line-strong px-2.5 py-1 text-[0.6875rem] font-medium tracking-wide text-ink-muted">
-                  {q.name}
-                </span>
               </Link>
             ))}
           </div>

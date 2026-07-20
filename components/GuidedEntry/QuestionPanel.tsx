@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { AnswerValue, Question } from "@/lib/types";
 import { InputByType } from "./InputByType";
 import { ActionRow } from "./ActionRow";
@@ -70,20 +71,26 @@ export function QuestionPanel({
         </ul>
       )}
 
-      <div className="mt-6">
-        <InputByType question={question} value={value} onChange={onChange} />
+      <div className="mt-6 flex items-stretch gap-2">
+        <div className="min-w-0 flex-1">
+          <InputByType question={question} value={value} onChange={onChange} />
+        </div>
+        {question.is_repeatable && (
+          <button
+            type="button"
+            onClick={onAddAnother}
+            disabled={!canSave}
+            aria-label="Add another answer"
+            title="Add another answer"
+            className="flex w-12 shrink-0 items-center justify-center rounded-lg border border-line text-ink-muted transition hover:border-ink hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-line disabled:hover:bg-transparent disabled:hover:text-ink-muted"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       <div className="mt-8">
-        <ActionRow
-          isRepeatable={question.is_repeatable}
-          canSave={canSave}
-          canBack={canBack}
-          onSaveNext={onSaveNext}
-          onAddAnother={onAddAnother}
-          onSkip={onSkip}
-          onBack={onBack}
-        />
+        <ActionRow canSave={canSave} canBack={canBack} onSaveNext={onSaveNext} onSkip={onSkip} onBack={onBack} />
       </div>
     </div>
   );

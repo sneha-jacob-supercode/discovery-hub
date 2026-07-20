@@ -2,10 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { useClientStore } from "@/lib/clientStore";
-import { useQuestionnaireStore } from "@/lib/questionnaireStore";
 import { orderedQuestionsForClient, firstOpenQuestion, getProgress } from "@/lib/status";
-import { AnswerValue, Answer, Client, Question } from "@/lib/types";
+import { AnswerValue, Answer, Client, Question, Questionnaire } from "@/lib/types";
 import { SidePanel } from "./SidePanel";
 import { QuestionPanel } from "./QuestionPanel";
 import { Button } from "@/components/ui/Button";
@@ -29,47 +27,47 @@ function findNextOpenIndex(
   return -1;
 }
 
+export interface GuidedEntryActions {
+  saveAnswer: (questionId: string, value: AnswerValue) => void;
+  addEntry: (questionId: string, value: AnswerValue) => void;
+  removeEntry: (questionId: string, index: number) => void;
+  skipQuestion: (questionId: string) => void;
+  addCustomQuestion?: (question: Omit<Question, "id" | "is_custom">) => void;
+  hideQuestion?: (questionId: string) => void;
+  unhideQuestion?: (questionId: string) => void;
+}
+
 export function GuidedEntryView({
-  clientId,
+  client,
+  questionnaire,
+  mode,
+  actions,
   initialQuestionId,
 }: {
-  clientId: string;
+  client: Client;
+  questionnaire: Questionnaire;
+  mode: "internal" | "public";
+  actions: GuidedEntryActions;
   initialQuestionId?: string;
 }) {
-  const {
-    getClient,
-    saveAnswer,
-    addEntry,
-    removeEntry,
-    skipQuestion,
-    addCustomQuestion,
-    hideQuestion,
-    unhideQuestion,
-  } = useClientStore();
-  const { getQuestionnaire } = useQuestionnaireStore();
-  const client = getClient(clientId);
-  const questionnaire = client ? getQuestionnaire(client.questionnaire_id) : undefined;
+  const isInternal = mode === "internal";
 
   const flatQuestions = useMemo(
-    () => (client && questionnaire ? orderedQuestionsForClient(client, questionnaire) : []),
+    () => orderedQuestionsForClient(client, questionnaire),
     [client, questionnaire]
   );
 
   const [currentId, setCurrentId] = useState<string | null>(
-    () => initialQuestionId ?? (client && questionnaire ? firstOpenQuestion(client, questionnaire)?.id : undefined) ?? null
+    () => initialQuestionId ?? firstOpenQuestion(client, questionnaire)?.id ?? null
   );
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
-
-  if (!client || !questionnaire) {
-    return <div className="flex flex-1 items-center justify-center text-sm text-ink-faint">Loading…</div>;
-  }
 
   const progress = getProgress(client, questionnaire);
   const currentIndex = currentId ? flatQuestions.findIndex((q) => q.id === currentId) : -1;
   const currentQuestion = currentIndex >= 0 ? flatQuestions[currentIndex] : undefined;
 
   function advanceFrom(question: Question, index: number, resultStatus: "answered" | "skipped") {
-    const effectiveAnswers = { ...client!.answers, [question.id]: { status: resultStatus } };
+    const effectiveAnswers = { ...client.answers, [question.id]: { status: resultStatus } };
     const next = findNextOpenIndex(flatQuestions, index, effectiveAnswers);
     setCurrentId(next === -1 ? null : flatQuestions[next].id);
   }
@@ -77,24 +75,24 @@ export function GuidedEntryView({
   function handleSaveNext(question: Question, index: number, value: AnswerValue | undefined) {
     if (question.is_repeatable) {
       if (hasValue(value)) {
-        addEntry(clientId, question.id, value!);
-      } else if ((client!.answers[question.id]?.entries?.length ?? 0) === 0) {
+        actions.addEntry(question.id, value!);
+      } else if ((client.answers[question.id]?.entries?.length ?? 0) === 0) {
         return;
       }
     } else {
       if (!hasValue(value)) return;
-      saveAnswer(clientId, question.id, value!);
+      actions.saveAnswer(question.id, value!);
     }
     advanceFrom(question, index, "answered");
   }
 
   function handleAddAnother(question: Question, value: AnswerValue | undefined) {
     if (!hasValue(value)) return;
-    addEntry(clientId, question.id, value!);
+    actions.addEntry(question.id, value!);
   }
 
   function handleSkip(question: Question, index: number) {
-    skipQuestion(clientId, question.id);
+    actions.skipQuestion(question.id);
     advanceFrom(question, index, "skipped");
   }
 
@@ -103,7 +101,7 @@ export function GuidedEntryView({
   }
 
   function handleHideQuestion(questionId: string) {
-    hideQuestion(clientId, questionId);
+    actions.hideQuestion?.(questionId);
     if (questionId === currentId) {
       const idx = flatQuestions.findIndex((q) => q.id === questionId);
       const remaining = flatQuestions.filter((q) => q.id !== questionId);
@@ -137,10 +135,11 @@ export function GuidedEntryView({
             client={client}
             questionnaire={questionnaire}
             currentId={currentId}
+            mode={mode}
             onSelect={(id) => setCurrentId(id)}
-            onAddQuestion={(payload) => addCustomQuestion(clientId, payload)}
-            onHideQuestion={handleHideQuestion}
-            onUnhideQuestion={(id) => unhideQuestion(clientId, id)}
+            onAddQuestion={isInternal ? (payload) => actions.addCustomQuestion?.(payload) : undefined}
+            onHideQuestion={isInternal ? handleHideQuestion : undefined}
+            onUnhideQuestion={isInternal ? (id) => actions.unhideQuestion?.(id) : undefined}
           />
         </div>
 
@@ -162,13 +161,14 @@ export function GuidedEntryView({
                   client={client}
                   questionnaire={questionnaire}
                   currentId={currentId}
+                  mode={mode}
                   onSelect={(id) => {
                     setCurrentId(id);
                     setSidePanelOpen(false);
                   }}
-                  onAddQuestion={(payload) => addCustomQuestion(clientId, payload)}
-                  onHideQuestion={handleHideQuestion}
-                  onUnhideQuestion={(id) => unhideQuestion(clientId, id)}
+                  onAddQuestion={isInternal ? (payload) => actions.addCustomQuestion?.(payload) : undefined}
+                  onHideQuestion={isInternal ? handleHideQuestion : undefined}
+                  onUnhideQuestion={isInternal ? (id) => actions.unhideQuestion?.(id) : undefined}
                 />
               </div>
             </div>
@@ -188,10 +188,11 @@ export function GuidedEntryView({
               onAddAnother={(value) => handleAddAnother(currentQuestion, value)}
               onSkip={() => handleSkip(currentQuestion, currentIndex)}
               onBack={handleBack}
-              onRemoveEntry={(idx) => removeEntry(clientId, currentQuestion.id, idx)}
+              onRemoveEntry={(idx) => actions.removeEntry(currentQuestion.id, idx)}
             />
           ) : (
             <DoneScreen
+              mode={mode}
               onReviewSkipped={() => {
                 const skippedQ = flatQuestions.find((q) => client.answers[q.id]?.status === "skipped");
                 if (skippedQ) setCurrentId(skippedQ.id);
@@ -286,9 +287,11 @@ function QuestionRuntime({
 }
 
 function DoneScreen({
+  mode,
   hasSkipped,
   onReviewSkipped,
 }: {
+  mode: "internal" | "public";
   hasSkipped: boolean;
   onReviewSkipped: () => void;
 }) {
@@ -298,13 +301,19 @@ function DoneScreen({
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-surface text-success">
           <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
         </span>
-        <h2 className="mt-4 text-xl font-semibold text-ink">You&apos;re Answers have been Saved</h2>
+        <h2 className="mt-4 text-xl font-semibold text-ink">
+          {mode === "public" ? "Thanks — we've got everything we need" : "You&apos;re Answers have been Saved"}
+        </h2>
         <p className="mt-1 text-sm text-ink-muted">
-          {hasSkipped
-            ? "A few were skipped — you can revisit them here or from the outline anytime."
-            : "Nice work. We'll get back to you with the next steps!"}
+          {mode === "public"
+            ? hasSkipped
+              ? "We'll follow up on anything you skipped if we need more detail."
+              : "You can close this tab now."
+            : hasSkipped
+              ? "A few were skipped — you can revisit them here or from the outline anytime."
+              : "Nice work. We'll get back to you with the next steps!"}
         </p>
-        {hasSkipped && (
+        {mode === "internal" && hasSkipped && (
           <Button variant="secondary" onClick={onReviewSkipped} className="mt-5">
             Review skipped questions
           </Button>

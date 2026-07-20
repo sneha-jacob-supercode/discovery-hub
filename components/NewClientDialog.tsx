@@ -1,23 +1,52 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Copy } from "lucide-react";
 import { Questionnaire } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
+import { generateClientPassword } from "@/lib/generatePassword";
 
 interface NewClientDialogProps {
   questionnaires: Questionnaire[];
   onCancel: () => void;
-  onCreate: (questionnaireId: string, name: string) => void;
+  onCreate: (questionnaireId: string, name: string, contactEmails: string[], password: string) => void;
+}
+
+function parseEmails(input: string): string[] {
+  return input
+    .split(/[,\n]/)
+    .map((email) => email.trim())
+    .filter(Boolean);
 }
 
 export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClientDialogProps) {
   const [name, setName] = useState("");
   const [questionnaireId, setQuestionnaireId] = useState(questionnaires[0]?.id ?? "");
+  const [contactEmailsInput, setContactEmailsInput] = useState("");
+  const [password, setPassword] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  function handleEmailsChange(value: string) {
+    setContactEmailsInput(value);
+    if (!password && value.trim()) {
+      setPassword(generateClientPassword());
+    }
+  }
+
+  function handleCopyBoth() {
+    const emails = parseEmails(contactEmailsInput);
+    const text = `Email: ${emails.join(", ")}\nPassword: ${password}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!questionnaireId) return;
-    onCreate(questionnaireId, name);
+    const contactEmails = parseEmails(contactEmailsInput);
+    const finalPassword = password || generateClientPassword();
+    onCreate(questionnaireId, name, contactEmails, finalPassword);
   }
 
   return (
@@ -39,6 +68,60 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
             className="w-full rounded-md border border-line px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-ink focus:outline-none focus:ring-2 focus:ring-line"
           />
         </div>
+
+        <div className="mt-4">
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">
+            Contact email(s)
+          </label>
+          <textarea
+            value={contactEmailsInput}
+            onChange={(e) => handleEmailsChange(e.target.value)}
+            placeholder="client@company.com, another@company.com"
+            rows={2}
+            className="w-full resize-none rounded-md border border-line px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-ink focus:outline-none focus:ring-2 focus:ring-line"
+          />
+          <p className="mt-1 text-[0.6875rem] text-ink-faint">
+            Comma or newline separated. These emails, plus the password below, are required to open the
+            client link.
+          </p>
+        </div>
+
+        {password && (
+          <div className="mt-4">
+            <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">
+              Generated password
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={password}
+                className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-sm text-ink"
+              />
+              <button
+                type="button"
+                onClick={handleCopyBoth}
+                aria-label="Copy email and password"
+                className="flex shrink-0 items-center gap-1.5 rounded-md border border-line px-2.5 py-2 text-xs font-medium text-ink-muted transition hover:border-line-strong hover:text-ink"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    Copy both
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="mt-1 text-[0.6875rem] text-ink-faint">
+              Share this with the client directly — it won&apos;t be shown again after you create this
+              client.
+            </p>
+          </div>
+        )}
 
         <div className="mt-4">
           <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Questionnaire</label>

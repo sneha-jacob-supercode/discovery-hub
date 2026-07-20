@@ -44,7 +44,7 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
   }, [copiedItem]);
 
   function copyUrl() {
-    navigator.clipboard.writeText(`${window.location.origin}/client/${client.id}`);
+    navigator.clipboard.writeText(`${window.location.origin}/client/${client.slug}`);
     setCopiedItem("url");
   }
 
@@ -57,9 +57,9 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
     <div
       role="link"
       tabIndex={0}
-      onClick={() => router.push(`/client/${client.id}`)}
+      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") router.push(`/client/${client.id}`);
+        if (e.key === "Enter") router.push(`/dashboard/clients/${client.id}`);
       }}
       className="group relative flex cursor-pointer flex-col justify-between rounded-lg border border-line bg-surface p-5 transition hover:border-line-strong hover:shadow-md"
     >
@@ -93,7 +93,7 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-paper"
                 >
                   <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  {copiedItem === "url" ? "Copied!" : "Copy URL"}
+                  {copiedItem === "url" ? "Copied!" : "Copy client link"}
                 </button>
                 <button
                   onClick={copyMarkdown}
