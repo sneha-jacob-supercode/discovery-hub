@@ -147,14 +147,7 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
         <span className="min-w-0 truncate font-mono text-[0.6875rem] text-ink-faint">
           Updated {formatRelativeTime(client.last_updated)}
         </span>
-        <div className="flex shrink-0 gap-2" onClick={(e) => e.stopPropagation()}>
-          <Link href={`/client/${client.id}?view=table`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
-            View Sheet
-          </Link>
-          <Link href={`/client/${client.id}`} className={buttonClasses({ variant: "primary", size: "sm" })}>
-            Open
-          </Link>
-        </div>
+        
       </div>
 
       {showDeleteConfirm && (
