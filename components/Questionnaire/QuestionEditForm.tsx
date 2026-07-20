@@ -52,7 +52,7 @@ export function QuestionEditForm({ sections, initial, onCancel, onSubmit }: Ques
       className="space-y-3 rounded-md border border-line bg-surface p-3"
     >
       <div>
-        <label className="mb-1 block text-[11px] font-medium text-ink-muted">Question</label>
+        <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Question</label>
         <input
           autoFocus
           value={label}
@@ -64,11 +64,11 @@ export function QuestionEditForm({ sections, initial, onCancel, onSubmit }: Ques
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">Section</label>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Section</label>
           <SectionField sections={sections} value={section} onChange={setSection} />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">Type</label>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Type</label>
           <select
             value={fieldType}
             onChange={(e) => setFieldType(e.target.value as FieldType)}
@@ -95,7 +95,7 @@ export function QuestionEditForm({ sections, initial, onCancel, onSubmit }: Ques
 
       {needsOptions && (
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">
             {fieldType === "ranking" ? "Items to rank" : "Answer choices"}
           </label>
           <OptionsEditor options={options} onChange={setOptions} />

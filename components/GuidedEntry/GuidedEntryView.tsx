@@ -127,12 +127,12 @@ export function GuidedEntryView({
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper">
           <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
         </div>
-        <span className="font-mono text-[11px] text-ink-faint">{pct}%</span>
+        <span className="font-mono text-[0.6875rem] text-ink-faint">{pct}%</span>
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Side panel — static on desktop, drawer on mobile */}
-        <div className="hidden w-[360px] shrink-0 border-r border-line bg-surface md:block">
+        <div className="hidden w-[22.5rem] shrink-0 border-r border-line bg-surface md:block">
           <SidePanel
             client={client}
             questionnaire={questionnaire}
@@ -147,7 +147,7 @@ export function GuidedEntryView({
         {sidePanelOpen && (
           <div className="fixed inset-0 z-30 md:hidden">
             <div className="absolute inset-0 bg-black/30" onClick={() => setSidePanelOpen(false)} />
-            <div className="absolute inset-y-0 left-0 w-[360px] max-w-[85vw] overflow-hidden bg-surface shadow-xl">
+            <div className="absolute inset-y-0 left-0 w-[22.5rem] max-w-[85vw] overflow-hidden bg-surface shadow-xl">
               <div className="flex items-center justify-between border-b border-line px-4 py-3">
                 <span className="text-sm font-medium text-ink">Question outline</span>
                 <button
@@ -157,7 +157,7 @@ export function GuidedEntryView({
                   Close
                 </button>
               </div>
-              <div className="h-[calc(100%-49px)]">
+              <div className="h-[calc(100%-3.0625rem)]">
                 <SidePanel
                   client={client}
                   questionnaire={questionnaire}

@@ -29,12 +29,12 @@ export function QuestionTable({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-line bg-surface">
-      <table className="w-full min-w-[720px] border-collapse">
+      <table className="w-full min-w-[45rem] border-collapse">
         <thead>
           <tr className="border-b border-line bg-paper text-left">
-            <th className="px-3 py-2 font-mono text-[11px] uppercase tracking-wide text-ink-faint">Question</th>
-            <th className="px-3 py-2 font-mono text-[11px] uppercase tracking-wide text-ink-faint">Answer</th>
-            <th className="px-3 py-2 font-mono text-[11px] uppercase tracking-wide text-ink-faint">Status</th>
+            <th className="px-3 py-2 font-mono text-[0.6875rem] uppercase tracking-wide text-ink-faint">Question</th>
+            <th className="px-3 py-2 font-mono text-[0.6875rem] uppercase tracking-wide text-ink-faint">Answer</th>
+            <th className="px-3 py-2 font-mono text-[0.6875rem] uppercase tracking-wide text-ink-faint">Status</th>
             <th className="px-3 py-2"></th>
           </tr>
         </thead>
@@ -43,7 +43,7 @@ export function QuestionTable({
             <Fragment key={section}>
               <tr>
                 <td colSpan={4} className="border-b border-line bg-paper/70 px-3 py-1.5">
-                  <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-ink-faint">
+                  <span className="font-mono text-[0.6875rem] font-medium uppercase tracking-widest text-ink-faint">
                     {section}
                   </span>
                 </td>

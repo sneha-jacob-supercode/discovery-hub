@@ -46,7 +46,7 @@ export function QuestionPanel({
       <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">
         {sectionLabel} · {positionLabel}
       </p>
-      <h2 className="mt-3 text-2xl font-semibold leading-snug text-ink sm:text-[28px]">
+      <h2 className="mt-3 text-2xl font-semibold leading-snug text-ink sm:text-[1.75rem]">
         {question.label}
       </h2>
 

@@ -30,7 +30,7 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
         <h2 className="text-sm font-semibold text-ink">New client</h2>
 
         <div className="mt-4">
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">Client name</label>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Client name</label>
           <input
             autoFocus
             value={name}
@@ -41,7 +41,7 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
         </div>
 
         <div className="mt-4">
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">Questionnaire</label>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Questionnaire</label>
           <div className="space-y-1.5">
             {questionnaires.map((q) => (
               <label
@@ -60,7 +60,7 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
                   />
                   {q.name}
                 </span>
-                <span className="font-mono text-[11px] text-ink-faint">
+                <span className="font-mono text-[0.6875rem] text-ink-faint">
                   {q.questions.length} question{q.questions.length === 1 ? "" : "s"}
                 </span>
               </label>

@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { AnswerValue, Question } from "@/lib/types";
 
 interface InputByTypeProps {
@@ -137,47 +138,99 @@ export function InputByType({ question, value, onChange }: InputByTypeProps) {
       function move(index: number, direction: -1 | 1) {
         const target = index + direction;
         if (target < 0 || target >= current.length) return;
+        reorder(index, target);
+      }
+
+      function reorder(from: number, to: number) {
+        if (from === to) return;
         const next = [...current];
-        [next[index], next[target]] = [next[target], next[index]];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
         onChange(next);
       }
 
-      return (
-        <ol className="space-y-1.5">
-          {current.map((item, i) => (
-            <li
-              key={item}
-              className="flex items-center gap-3 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink"
-            >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-paper font-mono text-[11px] text-ink-faint">
-                {i + 1}
-              </span>
-              <span className="min-w-0 flex-1 truncate">{item}</span>
-              <button
-                type="button"
-                onClick={() => move(i, -1)}
-                disabled={i === 0}
-                className="shrink-0 rounded-full p-1 text-ink-faint transition hover:text-ink disabled:opacity-30"
-                aria-label="Move up"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(i, 1)}
-                disabled={i === current.length - 1}
-                className="shrink-0 rounded-full p-1 text-ink-faint transition hover:text-ink disabled:opacity-30"
-                aria-label="Move down"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ol>
-      );
+      return <RankingInput items={current} onReorder={reorder} onMove={move} />;
     }
 
     default:
       return null;
   }
+}
+
+interface RankingInputProps {
+  items: string[];
+  onReorder: (from: number, to: number) => void;
+  onMove: (index: number, direction: -1 | 1) => void;
+}
+
+function RankingInput({ items, onReorder, onMove }: RankingInputProps) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  function handleDrop(dropIndex: number) {
+    if (dragIndex !== null && dragIndex !== dropIndex) onReorder(dragIndex, dropIndex);
+    setDragIndex(null);
+    setOverIndex(null);
+  }
+
+  return (
+    <ol className="space-y-1.5">
+      {items.map((item, i) => (
+        <li
+          key={item}
+          draggable
+          onDragStart={(e) => {
+            setDragIndex(i);
+            e.dataTransfer.effectAllowed = "move";
+          }}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            if (dragIndex !== null && dragIndex !== i) setOverIndex(i);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleDrop(i);
+          }}
+          onDragEnd={() => {
+            setDragIndex(null);
+            setOverIndex(null);
+          }}
+          className={`flex items-center gap-2 rounded-lg border bg-surface px-4 py-2.5 text-sm text-ink transition ${
+            dragIndex === i
+              ? "border-line-strong opacity-40"
+              : overIndex === i
+                ? "border-ink"
+                : "border-line"
+          }`}
+        >
+          <span className="shrink-0 cursor-grab text-ink-faint active:cursor-grabbing" aria-hidden="true">
+            <GripVertical className="h-4 w-4" />
+          </span>
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-paper font-mono text-[0.6875rem] text-ink-faint">
+            {i + 1}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{item}</span>
+          <button
+            type="button"
+            onClick={() => onMove(i, -1)}
+            disabled={i === 0}
+            className="shrink-0 rounded-full p-1 text-ink-faint transition hover:text-ink disabled:opacity-30"
+            aria-label="Move up"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(i, 1)}
+            disabled={i === items.length - 1}
+            className="shrink-0 rounded-full p-1 text-ink-faint transition hover:text-ink disabled:opacity-30"
+            aria-label="Move down"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
 }

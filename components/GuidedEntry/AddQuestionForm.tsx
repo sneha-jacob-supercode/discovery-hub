@@ -38,7 +38,7 @@ export function AddQuestionForm({ sections, onCancel, onSubmit }: AddQuestionFor
       className="space-y-2 rounded-md border border-line bg-surface p-3"
     >
       <div>
-        <label className="mb-1 block text-[11px] font-medium text-ink-muted">Question</label>
+        <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Question</label>
         <input
           autoFocus
           value={label}
@@ -50,11 +50,11 @@ export function AddQuestionForm({ sections, onCancel, onSubmit }: AddQuestionFor
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">Section</label>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Section</label>
           <SectionField sections={sections} value={section} onChange={setSection} />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">Type</label>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Type</label>
           <select
             value={fieldType}
             onChange={(e) => setFieldType(e.target.value as FieldType)}

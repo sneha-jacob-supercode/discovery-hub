@@ -45,7 +45,7 @@ export function TableRow({
       <td className="w-[30%] px-3 py-2.5 align-top">
         <span className="text-sm text-ink">{question.label}</span>
         {question.is_custom && (
-          <span className="ml-1.5 rounded border border-line-strong px-1 py-0.5 font-mono text-[9px] uppercase tracking-wide text-ink-faint">
+          <span className="ml-1.5 rounded border border-line-strong px-1 py-0.5 font-mono text-[0.5625rem] uppercase tracking-wide text-ink-faint">
             Custom
           </span>
         )}
@@ -77,7 +77,7 @@ export function TableRow({
         {showConfirm && (
           <ConfirmDialog
             title={`Remove "${question.label}"?`}
-            description="This only removes it from this client's questionnaire — the shared template and other clients are unaffected. You can restore it later from Guided Entry → Hidden Questions."
+            description="This only removes it from this client's questionnaire — the shared template and other clients are unaffected. You can restore it later from Simple View → Hidden Questions."
             confirmLabel="Remove"
             onCancel={() => setShowConfirm(false)}
             onConfirm={() => {

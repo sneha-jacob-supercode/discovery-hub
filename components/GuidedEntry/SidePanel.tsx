@@ -89,7 +89,7 @@ export function SidePanel({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6">
         {grouped.map(({ section, questions }) => (
           <div key={section} className="mb-6">
-            <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+            <p className="mb-2 font-mono text-[0.6875rem] font-medium uppercase tracking-wider text-ink-faint">
               {section}
             </p>
             <ul className="space-y-0.5">
@@ -110,7 +110,7 @@ export function SidePanel({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span
-                          className={`block text-[13px] leading-snug ${
+                          className={`block text-[0.8125rem] leading-snug ${
                             status === "current"
                               ? "font-semibold text-ink"
                               : status === "skipped"
@@ -123,7 +123,7 @@ export function SidePanel({
                           {q.label}
                         </span>
                         {preview && status !== "current" && (
-                          <span className="block truncate text-[11px] text-ink-faint">{preview}</span>
+                          <span className="block truncate text-[0.6875rem] text-ink-faint">{preview}</span>
                         )}
                       </span>
                     </button>
@@ -146,7 +146,7 @@ export function SidePanel({
           <div className="mb-2">
             <button
               onClick={() => setShowHidden((v) => !v)}
-              className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-left font-mono text-[11px] font-medium uppercase tracking-wider text-ink-faint hover:text-ink"
+              className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-left font-mono text-[0.6875rem] font-medium uppercase tracking-wider text-ink-faint hover:text-ink"
             >
               <ChevronDown
                 className={`h-3 w-3 transition ${showHidden ? "" : "-rotate-90"}`}
@@ -159,11 +159,11 @@ export function SidePanel({
                 {hidden.map((q) => (
                   <li
                     key={q.id}
-                    className="flex items-center gap-2 rounded-md px-3 py-2 text-[13px] text-ink-faint"
+                    className="flex items-center gap-2 rounded-md px-3 py-2 text-[0.8125rem] text-ink-faint"
                   >
                     <span className="min-w-0 flex-1 truncate">{q.label}</span>
                     {q.is_custom && (
-                      <span className="shrink-0 rounded border border-line-strong px-1 py-0.5 font-mono text-[9px] uppercase tracking-wide">
+                      <span className="shrink-0 rounded border border-line-strong px-1 py-0.5 font-mono text-[0.5625rem] uppercase tracking-wide">
                         Custom
                       </span>
                     )}

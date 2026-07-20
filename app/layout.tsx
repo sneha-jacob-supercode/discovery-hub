@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Client Intake",
+  title: "Discovery Hub",
   description: "Guided client intake prototype",
 };
 

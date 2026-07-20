@@ -38,7 +38,7 @@ export function ActionRow({
         )}
         <Button type="button" variant="primary" onClick={onSaveNext} disabled={!canSave}>
           Save &amp; Next
-          <kbd className="ml-2 rounded border border-white/30 px-1.5 py-0.5 text-[10px] font-normal opacity-80">
+          <kbd className="ml-2 rounded border border-white/30 px-1.5 py-0.5 text-[0.625rem] font-normal opacity-80">
             ↵
           </kbd>
         </Button>

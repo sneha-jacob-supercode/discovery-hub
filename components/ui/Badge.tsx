@@ -10,8 +10,8 @@ const TONE_CLASSES: Record<BadgeTone, string> = {
 };
 
 const SIZE_CLASSES: Record<BadgeSize, string> = {
-  sm: "px-2 py-0.5 text-[10px]",
-  md: "px-2.5 py-1 text-[11px]",
+  sm: "px-2 py-0.5 text-[0.625rem]",
+  md: "px-2.5 py-1 text-[0.6875rem]",
 };
 
 export function Badge({

@@ -25,6 +25,10 @@
   --color-danger-line: #f3c6c2;
 }
 
+html {
+  font-size: 17.6px;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

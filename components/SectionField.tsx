@@ -36,7 +36,7 @@ export function SectionField({ sections, value, onChange }: SectionFieldProps) {
               setAddingSection(false);
               onChange(sections[0]);
             }}
-            className="text-[11px] text-ink-faint underline transition hover:text-ink"
+            className="text-[0.6875rem] text-ink-faint underline transition hover:text-ink"
           >
             Choose an existing section instead
           </button>

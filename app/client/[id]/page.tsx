@@ -59,7 +59,7 @@ function ClientDetailContent() {
               view === "guided" ? "bg-surface text-ink shadow-sm" : "text-ink-muted hover:text-ink"
             }`}
           >
-            Guided Entry
+           Simple View
           </Link>
           <Link
             href={`/client/${clientId}?view=table`}

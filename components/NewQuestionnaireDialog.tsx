@@ -27,7 +27,7 @@ export function NewQuestionnaireDialog({ onCancel, onCreate }: NewQuestionnaireD
         <h2 className="text-sm font-semibold text-ink">New questionnaire</h2>
 
         <div className="mt-4">
-          <label className="mb-1 block text-[11px] font-medium text-ink-muted">Questionnaire name</label>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Questionnaire name</label>
           <input
             autoFocus
             value={name}

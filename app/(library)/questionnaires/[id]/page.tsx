@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuestionnaireStore } from "@/lib/questionnaireStore";
 import { questionsBySection } from "@/lib/questions";
 import { FIELD_TYPE_LABEL } from "@/lib/fieldTypes";
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/Button";
 
 export default function QuestionnaireDetailPage() {
   const params = useParams<{ id: string }>();
-  const { getQuestionnaire, isHydrated, addQuestion, updateQuestion, removeQuestion } = useQuestionnaireStore();
+  const { getQuestionnaire, isHydrated, addQuestion, updateQuestion, removeQuestion, moveQuestion, moveSection } =
+    useQuestionnaireStore();
   const questionnaire = getQuestionnaire(params.id);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -55,15 +56,33 @@ export default function QuestionnaireDetailPage() {
         </div>
       ) : (
         <div className="mt-6 rounded-lg border border-line bg-surface">
-          {grouped.map(({ section, questions }) => (
+          {grouped.map(({ section, questions }, sectionIndex) => (
             <div key={section}>
-              <div className="border-b border-line bg-paper/70 px-5 py-1.5">
-                <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-ink-faint">
+              <div className="flex items-center justify-between border-b border-line bg-paper/70 px-5 py-1.5">
+                <span className="font-mono text-[0.6875rem] font-medium uppercase tracking-widest text-ink-faint">
                   {section}
                 </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => moveSection(questionnaire.id, section, "up")}
+                    disabled={sectionIndex === 0}
+                    className="rounded-full p-1 text-ink-faint transition hover:bg-paper hover:text-ink disabled:opacity-30"
+                    aria-label="Move section up"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => moveSection(questionnaire.id, section, "down")}
+                    disabled={sectionIndex === grouped.length - 1}
+                    className="rounded-full p-1 text-ink-faint transition hover:bg-paper hover:text-ink disabled:opacity-30"
+                    aria-label="Move section down"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
-              {questions.map((q) => (
-                <div key={q.id} className="border-b border-line px-5 py-3 last:border-b-0">
+              {questions.map((q, questionIndex) => (
+                <div key={q.id} className="group border-b border-line px-5 py-3 last:border-b-0">
                   {editingId === q.id ? (
                     <QuestionEditForm
                       sections={sections}
@@ -78,13 +97,29 @@ export default function QuestionnaireDetailPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-ink">{q.label}</p>
-                        <p className="mt-0.5 font-mono text-[11px] text-ink-faint">
+                        <p className="mt-0.5 font-mono text-[0.6875rem] text-ink-faint">
                           {FIELD_TYPE_LABEL[q.field_type]}
                           {q.is_repeatable ? " · repeatable" : ""}
                           {q.options && q.options.length > 0 ? ` · ${q.options.length} choices` : ""}
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          onClick={() => moveQuestion(questionnaire.id, q.id, "up")}
+                          disabled={questionIndex === 0}
+                          className="rounded-full p-1.5 text-ink-faint opacity-0 transition hover:bg-paper hover:text-ink group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 group-focus-within:disabled:opacity-30"
+                          aria-label="Move up"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveQuestion(questionnaire.id, q.id, "down")}
+                          disabled={questionIndex === questions.length - 1}
+                          className="rounded-full p-1.5 text-ink-faint opacity-0 transition hover:bg-paper hover:text-ink group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 group-focus-within:disabled:opacity-30"
+                          aria-label="Move down"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           onClick={() => setEditingId(q.id)}
                           className="rounded-full p-1.5 text-ink-faint transition hover:bg-paper hover:text-ink"

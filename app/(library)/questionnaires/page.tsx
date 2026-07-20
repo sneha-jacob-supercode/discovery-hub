@@ -23,7 +23,6 @@ export default function QuestionnairesPage() {
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-10">
       <header className="flex flex-col gap-1">
-        <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">Client Intake</p>
         <h1 className="text-2xl font-semibold text-ink">Questionnaires</h1>
         <p className="text-sm text-ink-muted">
           {isHydrated ? `${questionnaires.length} questionnaire${questionnaires.length === 1 ? "" : "s"}` : "Loading…"}
@@ -61,12 +60,12 @@ export default function QuestionnairesPage() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-ink">{q.name}</p>
-                  <p className="mt-0.5 font-mono text-[11px] text-ink-faint">
+                  <p className="mt-0.5 font-mono text-[0.6875rem] text-ink-faint">
                     {q.questions.length} question{q.questions.length === 1 ? "" : "s"} · Updated{" "}
                     {formatRelativeTime(q.last_updated)}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full border border-line-strong px-2.5 py-1 text-[11px] font-medium tracking-wide text-ink-muted">
+                <span className="shrink-0 rounded-full border border-line-strong px-2.5 py-1 text-[0.6875rem] font-medium tracking-wide text-ink-muted">
                   {q.name}
                 </span>
               </Link>

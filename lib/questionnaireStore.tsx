@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Question, Questionnaire } from "./types";
 import { SEED_QUESTIONNAIRES, QUESTIONNAIRE_SEED_VERSION } from "./questionnaireSeed";
+import { reorderWithinSection, reorderSections } from "./questions";
 
 const STORAGE_KEY = "client-intake-prototype:questionnaires:v1";
 
@@ -44,6 +45,8 @@ interface QuestionnaireStoreValue {
     patch: Partial<Omit<Question, "id">>
   ) => void;
   removeQuestion: (questionnaireId: string, questionId: string) => void;
+  moveQuestion: (questionnaireId: string, questionId: string, direction: "up" | "down") => void;
+  moveSection: (questionnaireId: string, section: string, direction: "up" | "down") => void;
 }
 
 const QuestionnaireStoreContext = createContext<QuestionnaireStoreValue | null>(null);
@@ -150,6 +153,29 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
     );
   }, []);
 
+  const moveQuestion = useCallback(
+    (questionnaireId: string, questionId: string, direction: "up" | "down") => {
+      setQuestionnaires((prev) =>
+        updateQuestionnaireList(prev, questionnaireId, (q) => ({
+          ...q,
+          last_updated: nowIso(),
+          questions: reorderWithinSection(q.questions, questionId, direction === "up" ? -1 : 1),
+        }))
+      );
+    },
+    []
+  );
+
+  const moveSection = useCallback((questionnaireId: string, section: string, direction: "up" | "down") => {
+    setQuestionnaires((prev) =>
+      updateQuestionnaireList(prev, questionnaireId, (q) => ({
+        ...q,
+        last_updated: nowIso(),
+        questions: reorderSections(q.questions, section, direction === "up" ? -1 : 1),
+      }))
+    );
+  }, []);
+
   const value = useMemo<QuestionnaireStoreValue>(
     () => ({
       questionnaires,
@@ -159,8 +185,20 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       addQuestion,
       updateQuestion,
       removeQuestion,
+      moveQuestion,
+      moveSection,
     }),
-    [questionnaires, isHydrated, getQuestionnaire, createQuestionnaire, addQuestion, updateQuestion, removeQuestion]
+    [
+      questionnaires,
+      isHydrated,
+      getQuestionnaire,
+      createQuestionnaire,
+      addQuestion,
+      updateQuestion,
+      removeQuestion,
+      moveQuestion,
+      moveSection,
+    ]
   );
 
   return (
