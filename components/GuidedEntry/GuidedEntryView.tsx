@@ -298,11 +298,11 @@ function DoneScreen({
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-surface text-success">
           <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
         </span>
-        <h2 className="mt-4 text-xl font-semibold text-ink">That&apos;s every question</h2>
+        <h2 className="mt-4 text-xl font-semibold text-ink">You&apos;re Answers have been Saved</h2>
         <p className="mt-1 text-sm text-ink-muted">
           {hasSkipped
             ? "A few were skipped — you can revisit them here or from the outline anytime."
-            : "Nice work. You can review everything in Table View, or keep this open for the next call."}
+            : "Nice work. We'll get back to you with the next steps!"}
         </p>
         {hasSkipped && (
           <Button variant="secondary" onClick={onReviewSkipped} className="mt-5">
