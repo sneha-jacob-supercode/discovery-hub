@@ -1,26 +1,60 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafafa;
+  --foreground: #111111;
+
+  --color-paper: #fafafa;
+  --color-surface: #ffffff;
+  --color-ink: #111111;
+  --color-ink-muted: #6b6b6b;
+  --color-ink-faint: #9a9a9a;
+  --color-line: #e5e5e5;
+  --color-line-strong: #d4d4d4;
+
+  --color-success: #0f6b54;
+  --color-success-soft: #e6f1ec;
+  --color-success-line: #bcdccf;
+
+  --color-warning: #a5570f;
+  --color-warning-soft: #f7ebdc;
+  --color-warning-line: #e6c99b;
+
+  --color-danger: #b3261e;
+  --color-danger-soft: #fbe9e7;
+  --color-danger-line: #f3c6c2;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-paper: var(--color-paper);
+  --color-surface: var(--color-surface);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-ink-faint: var(--color-ink-faint);
+  --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-success-line: var(--color-success-line);
+  --color-warning: var(--color-warning);
+  --color-warning-soft: var(--color-warning-soft);
+  --color-warning-line: var(--color-warning-line);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-danger-line: var(--color-danger-line);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: var(--color-line);
+  color: var(--color-ink);
 }
