@@ -9,7 +9,17 @@ import {
   useState,
 } from "react";
 import { Answer, AnswerStatus, AnswerValue, Client, FieldType, Question } from "./types";
-import { supabase } from "./supabaseClient";
+
+async function postClientAction(action: string, payload: Record<string, unknown>) {
+  const res = await fetch("/api/internal-data/clients", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error ?? "request_failed");
+  return data;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -138,10 +148,7 @@ async function upsertAnswer(
   value: AnswerValue | null,
   entries: AnswerValue[] | null
 ) {
-  const { error } = await supabase
-    .from("answers")
-    .upsert({ client_id: clientId, question_id: questionId, status, value, entries, updated_at: nowIso() });
-  if (error) throw error;
+  await postClientAction("upsert_answer", { clientId, questionId, status, value, entries });
 }
 
 export function ClientStoreProvider({ children }: { children: React.ReactNode }) {
@@ -152,29 +159,9 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
     let cancelled = false;
     (async () => {
       try {
-        const [
-          { data: clientRows, error: clientError },
-          { data: customQuestionRows, error: questionError },
-          { data: answerRows, error: answerError },
-          { data: hiddenRows, error: hiddenError },
-          { data: overrideRows, error: overrideError },
-        ] = await Promise.all([
-          supabase
-            .from("clients")
-            .select(
-              "id, slug, name, channel_name, meeting_date, contact_emails, questionnaire_id, created_at, last_updated, hub_client_id, hub_slack_channel_id, hub_favicon_url"
-            )
-            .order("created_at", { ascending: false }),
-          supabase.from("questions").select("*").not("client_id", "is", null).order("order_index"),
-          supabase.from("answers").select("*"),
-          supabase.from("client_hidden_questions").select("*"),
-          supabase.from("client_question_overrides").select("*"),
-        ]);
-        if (clientError) throw clientError;
-        if (questionError) throw questionError;
-        if (answerError) throw answerError;
-        if (hiddenError) throw hiddenError;
-        if (overrideError) throw overrideError;
+        const res = await fetch("/api/internal-data/clients");
+        if (!res.ok) throw new Error("failed to load clients");
+        const { clientRows, customQuestionRows, answerRows, hiddenRows, overrideRows } = await res.json();
 
         const assembled: Client[] = ((clientRows ?? []) as ClientRow[]).map((row) => {
           const clientAnswers: Record<string, Answer> = {};
@@ -264,21 +251,22 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       };
       setClients((prev) => [client, ...prev]);
       try {
-        const { error } = await supabase.from("clients").insert({
-          id: client.id,
-          slug: client.slug,
-          name: client.name,
-          channel_name: null,
-          meeting_date: null,
-          contact_emails: emails,
-          questionnaire_id: client.questionnaire_id,
-          created_at: client.created_at,
-          last_updated: client.last_updated,
-          hub_client_id: client.hub_client_id,
-          hub_slack_channel_id: client.hub_slack_channel_id,
-          hub_favicon_url: client.hub_favicon_url,
+        await postClientAction("create_client", {
+          client: {
+            id: client.id,
+            slug: client.slug,
+            name: client.name,
+            channel_name: null,
+            meeting_date: null,
+            contact_emails: emails,
+            questionnaire_id: client.questionnaire_id,
+            created_at: client.created_at,
+            last_updated: client.last_updated,
+            hub_client_id: client.hub_client_id,
+            hub_slack_channel_id: client.hub_slack_channel_id,
+            hub_favicon_url: client.hub_favicon_url,
+          },
         });
-        if (error) throw error;
       } catch (err) {
         console.error("Failed to create client", err);
         setClients((prev) => prev.filter((c) => c.id !== client.id));
@@ -291,8 +279,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
   const deleteClient = useCallback(async (clientId: string) => {
     setClients((prev) => prev.filter((c) => c.id !== clientId));
     try {
-      const { error } = await supabase.from("clients").delete().eq("id", clientId);
-      if (error) throw error;
+      await postClientAction("delete_client", { clientId });
     } catch (err) {
       console.error("Failed to delete client", err);
     }
@@ -334,81 +321,59 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       setClients((prev) => [duplicate, ...prev]);
 
       try {
-        const { error: clientError } = await supabase.from("clients").insert({
-          id: duplicate.id,
-          slug: duplicate.slug,
-          name: duplicate.name,
-          channel_name: duplicate.channel_name ?? null,
-          meeting_date: duplicate.meeting_date ?? null,
-          contact_emails: duplicate.contact_emails,
-          questionnaire_id: duplicate.questionnaire_id,
-          created_at: duplicate.created_at,
-          last_updated: duplicate.last_updated,
-          hub_client_id: duplicate.hub_client_id,
-          hub_slack_channel_id: duplicate.hub_slack_channel_id,
-          hub_favicon_url: duplicate.hub_favicon_url,
-        });
-        if (clientError) throw clientError;
-
-        if (remappedCustomQuestions.length > 0) {
-          const { error: questionsError } = await supabase.from("questions").insert(
-            remappedCustomQuestions.map((q, i) => ({
-              id: q.id,
-              questionnaire_id: null,
-              client_id: duplicate.id,
-              section: q.section,
-              label: q.label,
-              field_type: q.field_type,
-              is_repeatable: q.is_repeatable,
-              options: q.options ?? null,
-              placeholder: q.placeholder ?? null,
-              is_custom: true,
-              order_index: (i + 1) * 10,
-            }))
-          );
-          if (questionsError) throw questionsError;
-        }
-
         const answerEntries = Object.entries(duplicate.answers);
-        if (answerEntries.length > 0) {
-          const { error: answersError } = await supabase.from("answers").insert(
-            answerEntries.map(([questionId, answer]) => ({
-              client_id: duplicate.id,
-              question_id: questionId,
-              status: answer.status,
-              value: answer.value ?? null,
-              entries: answer.entries ?? null,
-              updated_at: nowIso(),
-            }))
-          );
-          if (answersError) throw answersError;
-        }
-
-        if (duplicate.hidden_question_ids.length > 0) {
-          const { error: hiddenError } = await supabase.from("client_hidden_questions").insert(
-            duplicate.hidden_question_ids.map((questionId) => ({
-              client_id: duplicate.id,
-              question_id: questionId,
-            }))
-          );
-          if (hiddenError) throw hiddenError;
-        }
-
         const overrideEntries = Object.entries(duplicate.question_overrides);
-        if (overrideEntries.length > 0) {
-          const { error: overrideError } = await supabase.from("client_question_overrides").insert(
-            overrideEntries.map(([questionId, patch]) => ({
-              client_id: duplicate.id,
-              question_id: questionId,
-              label: patch.label,
-              section: patch.section,
-              field_type: patch.field_type,
-              is_repeatable: patch.is_repeatable,
-              options: patch.options ?? null,
-            }))
-          );
-          if (overrideError) throw overrideError;
-        }
+
+        await postClientAction("duplicate_client", {
+          client: {
+            id: duplicate.id,
+            slug: duplicate.slug,
+            name: duplicate.name,
+            channel_name: duplicate.channel_name ?? null,
+            meeting_date: duplicate.meeting_date ?? null,
+            contact_emails: duplicate.contact_emails,
+            questionnaire_id: duplicate.questionnaire_id,
+            created_at: duplicate.created_at,
+            last_updated: duplicate.last_updated,
+            hub_client_id: duplicate.hub_client_id,
+            hub_slack_channel_id: duplicate.hub_slack_channel_id,
+            hub_favicon_url: duplicate.hub_favicon_url,
+          },
+          customQuestions: remappedCustomQuestions.map((q, i) => ({
+            id: q.id,
+            questionnaire_id: null,
+            client_id: duplicate.id,
+            section: q.section,
+            label: q.label,
+            field_type: q.field_type,
+            is_repeatable: q.is_repeatable,
+            options: q.options ?? null,
+            placeholder: q.placeholder ?? null,
+            is_custom: true,
+            order_index: (i + 1) * 10,
+          })),
+          answers: answerEntries.map(([questionId, answer]) => ({
+            client_id: duplicate.id,
+            question_id: questionId,
+            status: answer.status,
+            value: answer.value ?? null,
+            entries: answer.entries ?? null,
+            updated_at: nowIso(),
+          })),
+          hiddenQuestionIds: duplicate.hidden_question_ids.map((questionId) => ({
+            client_id: duplicate.id,
+            question_id: questionId,
+          })),
+          overrides: overrideEntries.map(([questionId, patch]) => ({
+            client_id: duplicate.id,
+            question_id: questionId,
+            label: patch.label,
+            section: patch.section,
+            field_type: patch.field_type,
+            is_repeatable: patch.is_repeatable,
+            options: patch.options ?? null,
+          })),
+        });
       } catch (err) {
         console.error("Failed to duplicate client", err);
         setClients((prev) => prev.filter((c) => c.id !== duplicate.id));
@@ -509,20 +474,21 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
         }))
       );
       try {
-        const { error } = await supabase.from("questions").insert({
-          id: newQuestion.id,
-          questionnaire_id: null,
-          client_id: clientId,
-          section: newQuestion.section,
-          label: newQuestion.label,
-          field_type: newQuestion.field_type,
-          is_repeatable: newQuestion.is_repeatable,
-          options: newQuestion.options ?? null,
-          placeholder: newQuestion.placeholder ?? null,
-          is_custom: true,
-          order_index: orderIndex,
+        await postClientAction("add_custom_question", {
+          question: {
+            id: newQuestion.id,
+            questionnaire_id: null,
+            client_id: clientId,
+            section: newQuestion.section,
+            label: newQuestion.label,
+            field_type: newQuestion.field_type,
+            is_repeatable: newQuestion.is_repeatable,
+            options: newQuestion.options ?? null,
+            placeholder: newQuestion.placeholder ?? null,
+            is_custom: true,
+            order_index: orderIndex,
+          },
         });
-        if (error) throw error;
       } catch (err) {
         console.error("Failed to add custom question", err);
         setClients((prev) =>
@@ -550,10 +516,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       )
     );
     try {
-      const { error } = await supabase
-        .from("client_hidden_questions")
-        .upsert({ client_id: clientId, question_id: questionId });
-      if (error) throw error;
+      await postClientAction("hide_question", { clientId, questionId });
     } catch (err) {
       console.error("Failed to hide question", err);
     }
@@ -568,12 +531,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       }))
     );
     try {
-      const { error } = await supabase
-        .from("client_hidden_questions")
-        .delete()
-        .eq("client_id", clientId)
-        .eq("question_id", questionId);
-      if (error) throw error;
+      await postClientAction("unhide_question", { clientId, questionId });
     } catch (err) {
       console.error("Failed to unhide question", err);
     }
@@ -593,17 +551,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
         }))
       );
       try {
-        const { error } = await supabase
-          .from("questions")
-          .update({
-            label: patch.label,
-            section: patch.section,
-            field_type: patch.field_type,
-            is_repeatable: patch.is_repeatable,
-            options: patch.options ?? null,
-          })
-          .eq("id", questionId);
-        if (error) throw error;
+        await postClientAction("update_custom_question", { questionId, patch });
       } catch (err) {
         console.error("Failed to update custom question", err);
         if (previous) {
@@ -631,16 +579,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
         }))
       );
       try {
-        const { error } = await supabase.from("client_question_overrides").upsert({
-          client_id: clientId,
-          question_id: questionId,
-          label: patch.label,
-          section: patch.section,
-          field_type: patch.field_type,
-          is_repeatable: patch.is_repeatable,
-          options: patch.options ?? null,
-        });
-        if (error) throw error;
+        await postClientAction("update_question_override", { clientId, questionId, patch });
       } catch (err) {
         console.error("Failed to update question override", err);
         setClients((prev) =>
@@ -665,11 +604,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       }))
     );
     try {
-      const { error } = await supabase
-        .from("clients")
-        .update({ contact_emails: contactEmails, last_updated: nowIso() })
-        .eq("id", clientId);
-      if (error) throw error;
+      await postClientAction("update_contact_emails", { clientId, contactEmails });
     } catch (err) {
       console.error("Failed to update contact emails", err);
     }
@@ -677,11 +612,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
 
   const setClientPassword = useCallback(async (clientId: string, password: string) => {
     try {
-      const { error } = await supabase.rpc("set_client_password", {
-        p_client_id: clientId,
-        p_password: password,
-      });
-      if (error) throw error;
+      await postClientAction("set_client_password", { clientId, password });
     } catch (err) {
       console.error("Failed to set client password", err);
       throw err;

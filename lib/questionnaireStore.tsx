@@ -10,7 +10,17 @@ import {
 } from "react";
 import { FieldType, Question, Questionnaire } from "./types";
 import { reorderWithinSection, reorderSections } from "./questions";
-import { supabase } from "./supabaseClient";
+
+async function postQuestionnaireAction(action: string, payload: Record<string, unknown>) {
+  const res = await fetch("/api/internal-data/questionnaires", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error ?? "request_failed");
+  return data;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -107,14 +117,9 @@ function updateQuestionnaireList(
 }
 
 async function persistOrder(questions: Question[]) {
-  await Promise.all(
-    questions.map((q, i) =>
-      supabase
-        .from("questions")
-        .update({ order_index: (i + 1) * 10 })
-        .eq("id", q.id)
-    )
-  );
+  await postQuestionnaireAction("persist_order", {
+    items: questions.map((q, i) => ({ id: q.id, order_index: (i + 1) * 10 })),
+  });
 }
 
 export function QuestionnaireStoreProvider({ children }: { children: React.ReactNode }) {
@@ -125,17 +130,9 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
     let cancelled = false;
     (async () => {
       try {
-        const [{ data: qRows, error: qError }, { data: questionRows, error: questionError }] =
-          await Promise.all([
-            supabase.from("questionnaires").select("*").order("created_at"),
-            supabase
-              .from("questions")
-              .select("*")
-              .not("questionnaire_id", "is", null)
-              .order("order_index"),
-          ]);
-        if (qError) throw qError;
-        if (questionError) throw questionError;
+        const res = await fetch("/api/internal-data/questionnaires");
+        if (!res.ok) throw new Error("failed to load questionnaires");
+        const { qRows, questionRows } = await res.json();
 
         const assembled: Questionnaire[] = ((qRows ?? []) as QuestionnaireRow[]).map((row) => ({
           id: row.id,
@@ -176,14 +173,15 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
     };
     setQuestionnaires((prev) => [questionnaire, ...prev]);
     try {
-      const { error } = await supabase.from("questionnaires").insert({
-        id: questionnaire.id,
-        name: questionnaire.name,
-        description: questionnaire.description ?? null,
-        created_at: questionnaire.created_at,
-        last_updated: questionnaire.last_updated,
+      await postQuestionnaireAction("create_questionnaire", {
+        questionnaire: {
+          id: questionnaire.id,
+          name: questionnaire.name,
+          description: questionnaire.description ?? null,
+          created_at: questionnaire.created_at,
+          last_updated: questionnaire.last_updated,
+        },
       });
-      if (error) throw error;
     } catch (err) {
       console.error("Failed to create questionnaire", err);
       setQuestionnaires((prev) => prev.filter((q) => q.id !== questionnaire.id));
@@ -209,16 +207,13 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
         }))
       );
       try {
-        const { error } = await supabase
-          .from("questions")
-          .insert(
-            questionToInsertRow(
-              newQuestion,
-              { questionnaire_id: questionnaireId, client_id: null },
-              orderIndex
-            )
-          );
-        if (error) throw error;
+        await postQuestionnaireAction("add_question", {
+          question: questionToInsertRow(
+            newQuestion,
+            { questionnaire_id: questionnaireId, client_id: null },
+            orderIndex
+          ),
+        });
       } catch (err) {
         console.error("Failed to add question", err);
         setQuestionnaires((prev) =>
@@ -245,18 +240,17 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
         }))
       );
       try {
-        const { error } = await supabase
-          .from("questions")
-          .update({
+        await postQuestionnaireAction("update_question", {
+          questionId,
+          patch: {
             ...(patch.section !== undefined ? { section: patch.section } : {}),
             ...(patch.label !== undefined ? { label: patch.label } : {}),
             ...(patch.field_type !== undefined ? { field_type: patch.field_type } : {}),
             ...(patch.is_repeatable !== undefined ? { is_repeatable: patch.is_repeatable } : {}),
             ...(patch.options !== undefined ? { options: patch.options ?? null } : {}),
             ...(patch.placeholder !== undefined ? { placeholder: patch.placeholder ?? null } : {}),
-          })
-          .eq("id", questionId);
-        if (error) throw error;
+          },
+        });
       } catch (err) {
         console.error("Failed to update question", err);
       }
@@ -273,8 +267,7 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       }))
     );
     try {
-      const { error } = await supabase.from("questions").delete().eq("id", questionId);
-      if (error) throw error;
+      await postQuestionnaireAction("remove_question", { questionId });
     } catch (err) {
       console.error("Failed to remove question", err);
     }
