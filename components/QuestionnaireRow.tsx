@@ -105,7 +105,7 @@ export function QuestionnaireRow({ questionnaire }: { questionnaire: Questionnai
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-paper"
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-              Edit
+              Edit name
             </button>
             <button
               onClick={handleDuplicate}
