@@ -152,7 +152,7 @@ export function GuidedEntryView({
               : "w-[22.5rem] border-r border-line"
           }`}
         >
-          <div className="w-[22.5rem]">
+          <div className="h-full w-[22.5rem]">
             <SidePanel
               client={client}
               questionnaire={questionnaire}

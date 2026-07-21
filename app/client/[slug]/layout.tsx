@@ -17,7 +17,7 @@ export default function ClientPortalLayout({ children }: { children: React.React
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-line bg-surface px-6 py-3">
+      <header className="flex items-center gap-3 border-b border-line bg-surface px-6 py-3">
         <svg
           width="20"
           height="18"
@@ -41,13 +41,11 @@ export default function ClientPortalLayout({ children }: { children: React.React
           />
         </svg>
 
-        <p className="min-w-0 truncate text-center text-sm font-semibold tracking-tight text-ink">
+        <Favicon url={faviconUrl} />
+
+        <p className="min-w-0 text-sm font-semibold tracking-tight text-ink">
           Questionnaire
         </p>
-
-        <div className="flex items-center justify-end">
-          <Favicon url={faviconUrl} />
-        </div>
       </header>
       {children}
     </div>
