@@ -82,7 +82,9 @@ function LoginForm() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        setError("That code is invalid or has expired.");
+        setError(
+          res.status === 401 ? "That code is invalid or has expired." : "Something went wrong. Please try again."
+        );
         setStatus("idle");
         return;
       }

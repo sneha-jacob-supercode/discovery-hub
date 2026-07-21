@@ -26,12 +26,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const token = await signSession({
-    email: data.user.email,
-    member_id: data.user.member_id ?? null,
-    name: data.user.name,
-    designation: data.user.designation,
-  });
+  let token;
+  try {
+    token = await signSession({
+      email: data.user.email,
+      member_id: data.user.member_id ?? null,
+      name: data.user.name,
+      designation: data.user.designation,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Server misconfigured (missing INTERNAL_SESSION_SECRET)" },
+      { status: 500 }
+    );
+  }
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set(SESSION_COOKIE_NAME, token, {
