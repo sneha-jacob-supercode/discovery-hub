@@ -108,7 +108,7 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
                   {copiedItem === "md" ? "Copied!" : "Copy as md"}
                   
                 </button>
-                <button
+                {/* <button
                   onClick={() => {
                     duplicateClient(client.id);
                     setMenuOpen(false);
@@ -117,7 +117,7 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                   Duplicate
-                </button>
+                </button> */}
                 <button
                   onClick={() => {
                     setMenuOpen(false);

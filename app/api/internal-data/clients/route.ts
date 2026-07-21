@@ -183,6 +183,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    case "get_client_password": {
+      const { clientId } = body;
+      const { data, error } = await supabaseAdmin.rpc("get_client_password", {
+        p_client_id: clientId,
+      });
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ password: data ?? null });
+    }
+
     default:
       return NextResponse.json({ error: "invalid_action" }, { status: 400 });
   }

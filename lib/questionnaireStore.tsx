@@ -97,6 +97,7 @@ interface QuestionnaireStoreValue {
   createQuestionnaire: (name: string) => Promise<Questionnaire>;
   updateQuestionnaire: (questionnaireId: string, name: string) => Promise<void>;
   deleteQuestionnaire: (questionnaireId: string) => Promise<void>;
+  duplicateQuestionnaire: (questionnaireId: string) => Promise<Questionnaire>;
   addQuestion: (questionnaireId: string, question: Omit<Question, "id">) => Promise<Question>;
   updateQuestion: (
     questionnaireId: string,
@@ -219,6 +220,64 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
     await postQuestionnaireAction("delete_questionnaire", { questionnaireId });
     setQuestionnaires((prev) => prev.filter((q) => q.id !== questionnaireId));
   }, []);
+
+  const duplicateQuestionnaire = useCallback(
+  async (questionnaireId: string) => {
+    const source = questionnaires.find((q) => q.id === questionnaireId);
+    if (!source) throw new Error("questionnaire_not_found");
+
+    const newName = `${source.name} copy`;
+    const newId = slugify(newName);
+    const timestamp = nowIso();
+
+    const newQuestions: Question[] = source.questions.map((q, i) => ({
+      ...q,
+      id: `q_${slugify(q.label).replace(/-[a-z0-9]{5}$/, "")}_${Date.now()
+        .toString(36)
+        .slice(-4)}_${i}`,
+    }));
+
+    const newQuestionnaire: Questionnaire = {
+      id: newId,
+      name: newName,
+      description: source.description,
+      questions: newQuestions,
+      created_at: timestamp,
+      last_updated: timestamp,
+    };
+
+    setQuestionnaires((prev) => [newQuestionnaire, ...prev]);
+
+    try {
+      await postQuestionnaireAction("create_questionnaire", {
+        questionnaire: {
+          id: newQuestionnaire.id,
+          name: newQuestionnaire.name,
+          description: newQuestionnaire.description ?? null,
+          created_at: newQuestionnaire.created_at,
+          last_updated: newQuestionnaire.last_updated,
+        },
+      });
+
+      for (let i = 0; i < newQuestions.length; i++) {
+        await postQuestionnaireAction("add_question", {
+          question: questionToInsertRow(
+            newQuestions[i],
+            { questionnaire_id: newId, client_id: null },
+            (i + 1) * 10
+          ),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to duplicate questionnaire", err);
+      setQuestionnaires((prev) => prev.filter((q) => q.id !== newId));
+      throw err;
+    }
+
+    return newQuestionnaire;
+  },
+  [questionnaires]
+);
 
   const addQuestion = useCallback(
     async (questionnaireId: string, question: Omit<Question, "id">) => {
@@ -354,6 +413,7 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       createQuestionnaire,
       updateQuestionnaire,
       deleteQuestionnaire,
+      duplicateQuestionnaire,
       addQuestion,
       updateQuestion,
       removeQuestion,
@@ -367,6 +427,7 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       createQuestionnaire,
       updateQuestionnaire,
       deleteQuestionnaire,
+      duplicateQuestionnaire,
       addQuestion,
       updateQuestion,
       removeQuestion,

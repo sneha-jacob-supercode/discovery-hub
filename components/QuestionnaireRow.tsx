@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Copy } from "lucide-react";
 import { Questionnaire } from "@/lib/types";
 import { formatRelativeTime } from "@/lib/format";
 import { useQuestionnaireStore } from "@/lib/questionnaireStore";
@@ -11,13 +11,15 @@ import { EditQuestionnaireDialog } from "@/components/EditQuestionnaireDialog";
 
 export function QuestionnaireRow({ questionnaire }: { questionnaire: Questionnaire }) {
   const router = useRouter();
-  const { updateQuestionnaire, deleteQuestionnaire } = useQuestionnaireStore();
+  const { updateQuestionnaire, deleteQuestionnaire, duplicateQuestionnaire } = useQuestionnaireStore();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,6 +55,19 @@ export function QuestionnaireRow({ questionnaire }: { questionnaire: Questionnai
     }
   }
 
+  async function handleDuplicate() {
+    setDuplicateError(null);
+    setIsDuplicating(true);
+    try {
+      await duplicateQuestionnaire(questionnaire.id);
+      setMenuOpen(false);
+    } catch (err) {
+      setDuplicateError("Something went wrong duplicating this questionnaire. Please try again.");
+    } finally {
+      setIsDuplicating(false);
+    }
+  }
+
   return (
     <div
       role="link"
@@ -81,7 +96,7 @@ export function QuestionnaireRow({ questionnaire }: { questionnaire: Questionnai
           <MoreHorizontal className="h-4 w-4" />
         </button>
         {menuOpen && (
-          <div className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-md border border-line bg-surface py-1 shadow-lg">
+          <div className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-md border border-line bg-surface py-1 shadow-lg">
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -92,6 +107,17 @@ export function QuestionnaireRow({ questionnaire }: { questionnaire: Questionnai
               <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
               Edit
             </button>
+            <button
+              onClick={handleDuplicate}
+              disabled={isDuplicating}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-paper disabled:opacity-50"
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              {isDuplicating ? "Duplicating…" : "Duplicate"}
+            </button>
+            {duplicateError && (
+              <p className="px-3 py-1 text-xs text-warning">{duplicateError}</p>
+            )}
             <button
               onClick={() => {
                 setMenuOpen(false);
