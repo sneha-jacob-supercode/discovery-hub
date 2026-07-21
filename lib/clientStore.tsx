@@ -40,6 +40,9 @@ interface ClientRow {
   questionnaire_id: string;
   created_at: string;
   last_updated: string;
+  hub_client_id: string | null;
+  hub_slack_channel_id: string | null;
+  hub_favicon_url: string | null;
 }
 
 interface QuestionRow {
@@ -69,6 +72,16 @@ interface HiddenRow {
   question_id: string;
 }
 
+interface OverrideRow {
+  client_id: string;
+  question_id: string;
+  label: string;
+  section: string;
+  field_type: FieldType;
+  is_repeatable: boolean;
+  options: string[] | null;
+}
+
 function rowToQuestion(row: QuestionRow): Question {
   return {
     id: row.id,
@@ -82,11 +95,18 @@ function rowToQuestion(row: QuestionRow): Question {
   };
 }
 
+export type QuestionPatch = Pick<Question, "label" | "section" | "field_type" | "is_repeatable" | "options">;
+
 interface ClientStoreValue {
   clients: Client[];
   isHydrated: boolean;
   getClient: (id: string) => Client | undefined;
-  createClient: (questionnaireId: string, name?: string, contactEmails?: string[]) => Promise<Client>;
+  createClient: (
+    questionnaireId: string,
+    name?: string,
+    contactEmails?: string[],
+    hub?: { hubClientId: string; hubSlackChannelId: string | null; hubFaviconUrl: string | null }
+  ) => Promise<Client>;
   deleteClient: (clientId: string) => Promise<void>;
   duplicateClient: (clientId: string) => Promise<Client | undefined>;
   saveAnswer: (clientId: string, questionId: string, value: AnswerValue) => Promise<void>;
@@ -99,6 +119,8 @@ interface ClientStoreValue {
   ) => Promise<Question>;
   hideQuestion: (clientId: string, questionId: string) => Promise<void>;
   unhideQuestion: (clientId: string, questionId: string) => Promise<void>;
+  updateCustomQuestion: (clientId: string, questionId: string, patch: QuestionPatch) => Promise<void>;
+  updateQuestionOverride: (clientId: string, questionId: string, patch: QuestionPatch) => Promise<void>;
   updateContactEmails: (clientId: string, contactEmails: string[]) => Promise<void>;
   setClientPassword: (clientId: string, password: string) => Promise<void>;
 }
@@ -135,19 +157,24 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
           { data: customQuestionRows, error: questionError },
           { data: answerRows, error: answerError },
           { data: hiddenRows, error: hiddenError },
+          { data: overrideRows, error: overrideError },
         ] = await Promise.all([
           supabase
             .from("clients")
-            .select("id, slug, name, channel_name, meeting_date, contact_emails, questionnaire_id, created_at, last_updated")
+            .select(
+              "id, slug, name, channel_name, meeting_date, contact_emails, questionnaire_id, created_at, last_updated, hub_client_id, hub_slack_channel_id, hub_favicon_url"
+            )
             .order("created_at", { ascending: false }),
           supabase.from("questions").select("*").not("client_id", "is", null).order("order_index"),
           supabase.from("answers").select("*"),
           supabase.from("client_hidden_questions").select("*"),
+          supabase.from("client_question_overrides").select("*"),
         ]);
         if (clientError) throw clientError;
         if (questionError) throw questionError;
         if (answerError) throw answerError;
         if (hiddenError) throw hiddenError;
+        if (overrideError) throw overrideError;
 
         const assembled: Client[] = ((clientRows ?? []) as ClientRow[]).map((row) => {
           const clientAnswers: Record<string, Answer> = {};
@@ -175,7 +202,24 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
             hidden_question_ids: ((hiddenRows ?? []) as HiddenRow[])
               .filter((h) => h.client_id === row.id)
               .map((h) => h.question_id),
+            question_overrides: Object.fromEntries(
+              ((overrideRows ?? []) as OverrideRow[])
+                .filter((o) => o.client_id === row.id)
+                .map((o) => [
+                  o.question_id,
+                  {
+                    label: o.label,
+                    section: o.section,
+                    field_type: o.field_type,
+                    is_repeatable: o.is_repeatable,
+                    options: o.options ?? undefined,
+                  },
+                ])
+            ),
             questionnaire_id: row.questionnaire_id,
+            hub_client_id: row.hub_client_id,
+            hub_slack_channel_id: row.hub_slack_channel_id,
+            hub_favicon_url: row.hub_favicon_url,
           };
         });
 
@@ -193,41 +237,56 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
 
   const getClient = useCallback((id: string) => clients.find((c) => c.id === id), [clients]);
 
-  const createClient = useCallback(async (questionnaireId: string, name?: string, contactEmails?: string[]) => {
-    const label = name?.trim() || "New Client";
-    const emails = contactEmails ?? [];
-    const client: Client = {
-      id: slugify(label),
-      slug: slugify(label),
-      name: label,
-      contact_emails: emails,
-      created_at: nowIso(),
-      last_updated: nowIso(),
-      answers: {},
-      custom_questions: [],
-      hidden_question_ids: [],
-      questionnaire_id: questionnaireId,
-    };
-    setClients((prev) => [client, ...prev]);
-    try {
-      const { error } = await supabase.from("clients").insert({
-        id: client.id,
-        slug: client.slug,
-        name: client.name,
-        channel_name: null,
-        meeting_date: null,
+  const createClient = useCallback(
+    async (
+      questionnaireId: string,
+      name?: string,
+      contactEmails?: string[],
+      hub?: { hubClientId: string; hubSlackChannelId: string | null; hubFaviconUrl: string | null }
+    ) => {
+      const label = name?.trim() || "New Client";
+      const emails = contactEmails ?? [];
+      const client: Client = {
+        id: slugify(label),
+        slug: slugify(label),
+        name: label,
         contact_emails: emails,
-        questionnaire_id: client.questionnaire_id,
-        created_at: client.created_at,
-        last_updated: client.last_updated,
-      });
-      if (error) throw error;
-    } catch (err) {
-      console.error("Failed to create client", err);
-      setClients((prev) => prev.filter((c) => c.id !== client.id));
-    }
-    return client;
-  }, []);
+        created_at: nowIso(),
+        last_updated: nowIso(),
+        answers: {},
+        custom_questions: [],
+        hidden_question_ids: [],
+        question_overrides: {},
+        questionnaire_id: questionnaireId,
+        hub_client_id: hub?.hubClientId ?? null,
+        hub_slack_channel_id: hub?.hubSlackChannelId ?? null,
+        hub_favicon_url: hub?.hubFaviconUrl ?? null,
+      };
+      setClients((prev) => [client, ...prev]);
+      try {
+        const { error } = await supabase.from("clients").insert({
+          id: client.id,
+          slug: client.slug,
+          name: client.name,
+          channel_name: null,
+          meeting_date: null,
+          contact_emails: emails,
+          questionnaire_id: client.questionnaire_id,
+          created_at: client.created_at,
+          last_updated: client.last_updated,
+          hub_client_id: client.hub_client_id,
+          hub_slack_channel_id: client.hub_slack_channel_id,
+          hub_favicon_url: client.hub_favicon_url,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.error("Failed to create client", err);
+        setClients((prev) => prev.filter((c) => c.id !== client.id));
+      }
+      return client;
+    },
+    []
+  );
 
   const deleteClient = useCallback(async (clientId: string) => {
     setClients((prev) => prev.filter((c) => c.id !== clientId));
@@ -285,6 +344,9 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
           questionnaire_id: duplicate.questionnaire_id,
           created_at: duplicate.created_at,
           last_updated: duplicate.last_updated,
+          hub_client_id: duplicate.hub_client_id,
+          hub_slack_channel_id: duplicate.hub_slack_channel_id,
+          hub_favicon_url: duplicate.hub_favicon_url,
         });
         if (clientError) throw clientError;
 
@@ -330,6 +392,22 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
             }))
           );
           if (hiddenError) throw hiddenError;
+        }
+
+        const overrideEntries = Object.entries(duplicate.question_overrides);
+        if (overrideEntries.length > 0) {
+          const { error: overrideError } = await supabase.from("client_question_overrides").insert(
+            overrideEntries.map(([questionId, patch]) => ({
+              client_id: duplicate.id,
+              question_id: questionId,
+              label: patch.label,
+              section: patch.section,
+              field_type: patch.field_type,
+              is_repeatable: patch.is_repeatable,
+              options: patch.options ?? null,
+            }))
+          );
+          if (overrideError) throw overrideError;
         }
       } catch (err) {
         console.error("Failed to duplicate client", err);
@@ -501,6 +579,83 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  const updateCustomQuestion = useCallback(
+    async (clientId: string, questionId: string, patch: QuestionPatch) => {
+      const client = clients.find((c) => c.id === clientId);
+      const previous = client?.custom_questions.find((q) => q.id === questionId);
+      setClients((prev) =>
+        updateClient(prev, clientId, (c) => ({
+          ...c,
+          last_updated: nowIso(),
+          custom_questions: c.custom_questions.map((q) =>
+            q.id === questionId ? { ...q, ...patch } : q
+          ),
+        }))
+      );
+      try {
+        const { error } = await supabase
+          .from("questions")
+          .update({
+            label: patch.label,
+            section: patch.section,
+            field_type: patch.field_type,
+            is_repeatable: patch.is_repeatable,
+            options: patch.options ?? null,
+          })
+          .eq("id", questionId);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Failed to update custom question", err);
+        if (previous) {
+          setClients((prev) =>
+            updateClient(prev, clientId, (c) => ({
+              ...c,
+              custom_questions: c.custom_questions.map((q) => (q.id === questionId ? previous : q)),
+            }))
+          );
+        }
+      }
+    },
+    [clients]
+  );
+
+  const updateQuestionOverride = useCallback(
+    async (clientId: string, questionId: string, patch: QuestionPatch) => {
+      const client = clients.find((c) => c.id === clientId);
+      const previous = client?.question_overrides[questionId];
+      setClients((prev) =>
+        updateClient(prev, clientId, (c) => ({
+          ...c,
+          last_updated: nowIso(),
+          question_overrides: { ...c.question_overrides, [questionId]: patch },
+        }))
+      );
+      try {
+        const { error } = await supabase.from("client_question_overrides").upsert({
+          client_id: clientId,
+          question_id: questionId,
+          label: patch.label,
+          section: patch.section,
+          field_type: patch.field_type,
+          is_repeatable: patch.is_repeatable,
+          options: patch.options ?? null,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.error("Failed to update question override", err);
+        setClients((prev) =>
+          updateClient(prev, clientId, (c) => {
+            const next = { ...c.question_overrides };
+            if (previous) next[questionId] = previous;
+            else delete next[questionId];
+            return { ...c, question_overrides: next };
+          })
+        );
+      }
+    },
+    [clients]
+  );
+
   const updateContactEmails = useCallback(async (clientId: string, contactEmails: string[]) => {
     setClients((prev) =>
       updateClient(prev, clientId, (c) => ({
@@ -548,6 +703,8 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       addCustomQuestion,
       hideQuestion,
       unhideQuestion,
+      updateCustomQuestion,
+      updateQuestionOverride,
       updateContactEmails,
       setClientPassword,
     }),
@@ -565,6 +722,8 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       addCustomQuestion,
       hideQuestion,
       unhideQuestion,
+      updateCustomQuestion,
+      updateQuestionOverride,
       updateContactEmails,
       setClientPassword,
     ]

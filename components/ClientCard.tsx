@@ -10,6 +10,8 @@ import { formatRelativeTime } from "@/lib/format";
 import { buildClientMarkdown } from "@/lib/markdownExport";
 import { buttonClasses } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Badge } from "@/components/ui/Badge";
+import { Favicon } from "@/components/ui/Favicon";
 import { useClientStore } from "@/lib/clientStore";
 
 export function ClientCard({ client, questionnaire }: { client: Client; questionnaire: Questionnaire }) {
@@ -66,7 +68,10 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
       <div>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="truncate text-[0.9375rem] font-semibold text-ink">{client.name}</h3>
+            <div className="flex items-center gap-1.5">
+              <Favicon url={client.hub_favicon_url} />
+              <h3 className="truncate text-[0.9375rem] font-semibold text-ink">{client.name}</h3>
+            </div>
             <div className="mt-0.5 flex items-center gap-1">
               {questionnaire.description && (
                 <span title={questionnaire.description} className="shrink-0 text-ink-faint">
@@ -148,7 +153,11 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
         <span className="min-w-0 truncate font-mono text-[0.6875rem] text-ink-faint">
           Updated {formatRelativeTime(client.last_updated)}
         </span>
-        
+        {!client.hub_client_id && (
+          <Badge tone="neutral" size="sm" className="shrink-0">
+            Not linked
+          </Badge>
+        )}
       </div>
 
       {showDeleteConfirm && (

@@ -6,6 +6,7 @@ import { orderedQuestionsForClient, firstOpenQuestion, getProgress } from "@/lib
 import { AnswerValue, Answer, Client, Question, Questionnaire } from "@/lib/types";
 import { SidePanel } from "./SidePanel";
 import { QuestionPanel } from "./QuestionPanel";
+import { QuestionFormPayload } from "./AddQuestionForm";
 import { Button } from "@/components/ui/Button";
 
 function hasValue(value: AnswerValue | undefined): boolean {
@@ -35,6 +36,8 @@ export interface GuidedEntryActions {
   addCustomQuestion?: (question: Omit<Question, "id" | "is_custom">) => void;
   hideQuestion?: (questionId: string) => void;
   unhideQuestion?: (questionId: string) => void;
+  updateCustomQuestion?: (questionId: string, patch: QuestionFormPayload) => void;
+  updateQuestionOverride?: (questionId: string, patch: QuestionFormPayload) => void;
 }
 
 export function GuidedEntryView({
@@ -110,6 +113,14 @@ export function GuidedEntryView({
     }
   }
 
+  function handleUpdateQuestion(question: Question, patch: QuestionFormPayload) {
+    if (question.is_custom) {
+      actions.updateCustomQuestion?.(question.id, patch);
+    } else {
+      actions.updateQuestionOverride?.(question.id, patch);
+    }
+  }
+
   const pct = progress.total === 0 ? 0 : Math.round((progress.answered / progress.total) * 100);
 
   return (
@@ -138,6 +149,7 @@ export function GuidedEntryView({
             mode={mode}
             onSelect={(id) => setCurrentId(id)}
             onAddQuestion={isInternal ? (payload) => actions.addCustomQuestion?.(payload) : undefined}
+            onUpdateQuestion={isInternal ? handleUpdateQuestion : undefined}
             onHideQuestion={isInternal ? handleHideQuestion : undefined}
             onUnhideQuestion={isInternal ? (id) => actions.unhideQuestion?.(id) : undefined}
           />

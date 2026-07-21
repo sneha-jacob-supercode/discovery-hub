@@ -11,6 +11,8 @@ import { buildClientMarkdown } from "@/lib/markdownExport";
 import { GuidedEntryView } from "@/components/GuidedEntry/GuidedEntryView";
 import { ManageAccessDialog } from "@/components/ManageAccessDialog";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Favicon } from "@/components/ui/Favicon";
 
 export default function ClientDetailPage() {
   return (
@@ -32,6 +34,8 @@ function ClientDetailContent() {
     addCustomQuestion,
     hideQuestion,
     unhideQuestion,
+    updateCustomQuestion,
+    updateQuestionOverride,
     updateContactEmails,
     setClientPassword,
   } = useClientStore();
@@ -64,7 +68,15 @@ function ClientDetailContent() {
           ← Clients
         </Link>
         <div className="h-4 w-px shrink-0 bg-line" aria-hidden="true" />
-        <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{client.name}</h1>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Favicon url={client.hub_favicon_url} />
+          <h1 className="min-w-0 truncate text-sm font-semibold text-ink">{client.name}</h1>
+          {!client.hub_client_id && (
+            <Badge tone="neutral" size="sm" className="shrink-0">
+              Not linked
+            </Badge>
+          )}
+        </div>
         <Button variant="secondary" size="sm" onClick={() => setShowManageAccess(true)} className="shrink-0">
           <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
           Manage Access
@@ -103,6 +115,8 @@ function ClientDetailContent() {
           addCustomQuestion: (question) => addCustomQuestion(clientId, question),
           hideQuestion: (questionId) => hideQuestion(clientId, questionId),
           unhideQuestion: (questionId) => unhideQuestion(clientId, questionId),
+          updateCustomQuestion: (questionId, patch) => updateCustomQuestion(clientId, questionId, patch),
+          updateQuestionOverride: (questionId, patch) => updateQuestionOverride(clientId, questionId, patch),
         }}
       />
     </div>

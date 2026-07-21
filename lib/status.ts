@@ -1,14 +1,29 @@
 import { Answer, AnswerValue, Client, ClientStatus, Question, Questionnaire } from "./types";
 import { questionsBySection } from "./questions";
 
+function applyOverride(
+  question: Question,
+  overrides: Client["question_overrides"]
+): Question {
+  const patch = overrides[question.id];
+  return patch ? { ...question, ...patch } : question;
+}
+
 export function allQuestionsForClient(client: Client, questionnaire: Questionnaire): Question[] {
   const hidden = new Set(client.hidden_question_ids);
-  return [...questionnaire.questions, ...client.custom_questions].filter((q) => !hidden.has(q.id));
+  return [...questionnaire.questions, ...client.custom_questions]
+    .filter((q) => !hidden.has(q.id))
+    .map((q) => applyOverride(q, client.question_overrides));
 }
 
 export function hiddenQuestionsForClient(client: Client, questionnaire: Questionnaire): Question[] {
   if (client.hidden_question_ids.length === 0) return [];
-  const byId = new Map([...questionnaire.questions, ...client.custom_questions].map((q) => [q.id, q]));
+  const byId = new Map(
+    [...questionnaire.questions, ...client.custom_questions].map((q) => [
+      q.id,
+      applyOverride(q, client.question_overrides),
+    ])
+  );
   return client.hidden_question_ids
     .map((id) => byId.get(id))
     .filter((q): q is Question => Boolean(q));

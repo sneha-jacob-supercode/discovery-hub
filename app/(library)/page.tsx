@@ -7,6 +7,7 @@ import { useClientStore } from "@/lib/clientStore";
 import { useQuestionnaireStore } from "@/lib/questionnaireStore";
 import { ClientCard } from "@/components/ClientCard";
 import { NewClientDialog } from "@/components/NewClientDialog";
+import { HubSelection } from "@/components/HubClientCombobox";
 import { getClientStatus, STATUS_LABELS } from "@/lib/status";
 import { ClientStatus, Questionnaire } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
@@ -48,9 +49,10 @@ export default function LandingPage() {
     questionnaireId: string,
     name: string,
     contactEmails: string[],
-    password: string
+    password: string,
+    hub?: HubSelection
   ) {
-    const client = await createClient(questionnaireId, name, contactEmails);
+    const client = await createClient(questionnaireId, name, contactEmails, hub);
     try {
       await setClientPassword(client.id, password);
     } catch {

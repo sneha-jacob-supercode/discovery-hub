@@ -1,39 +1,53 @@
 "use client";
 
 import { useState } from "react";
-import { FieldType } from "@/lib/types";
+import { FieldType, Question } from "@/lib/types";
 import { FIELD_TYPES } from "@/lib/fieldTypes";
 import { Button } from "@/components/ui/Button";
 import { SectionField } from "@/components/SectionField";
+import { OptionsEditor } from "@/components/Questionnaire/OptionsEditor";
+
+export interface QuestionFormPayload {
+  label: string;
+  section: string;
+  field_type: FieldType;
+  is_repeatable: boolean;
+  options?: string[];
+}
 
 interface AddQuestionFormProps {
   sections: string[];
+  initial?: Question;
   onCancel: () => void;
-  onSubmit: (payload: {
-    label: string;
-    section: string;
-    field_type: FieldType;
-    is_repeatable: boolean;
-  }) => void;
+  onSubmit: (payload: QuestionFormPayload) => void;
 }
 
-export function AddQuestionForm({ sections, onCancel, onSubmit }: AddQuestionFormProps) {
-  const [label, setLabel] = useState("");
-  const [section, setSection] = useState<string>(sections[0] ?? "");
-  const [fieldType, setFieldType] = useState<FieldType>("long_text");
-  const [isRepeatable, setIsRepeatable] = useState(false);
+export function AddQuestionForm({ sections, initial, onCancel, onSubmit }: AddQuestionFormProps) {
+  const [label, setLabel] = useState(initial?.label ?? "");
+  const [section, setSection] = useState<string>(initial?.section ?? sections[0] ?? "");
+  const [fieldType, setFieldType] = useState<FieldType>(initial?.field_type ?? "long_text");
+  const [isRepeatable, setIsRepeatable] = useState(initial?.is_repeatable ?? false);
+  const [options, setOptions] = useState<string[]>(initial?.options ?? []);
+
+  const needsOptions = fieldType === "single_select" || fieldType === "multi_select" || fieldType === "ranking";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!label.trim() || !section.trim()) return;
-    onSubmit({ label: label.trim(), section: section.trim(), field_type: fieldType, is_repeatable: isRepeatable });
+    onSubmit({
+      label: label.trim(),
+      section: section.trim(),
+      field_type: fieldType,
+      is_repeatable: isRepeatable,
+      options: needsOptions ? options.filter((o) => o.trim().length > 0) : undefined,
+    });
   }
 
   return (
     <form
       onSubmit={handleSubmit}
       onKeyDown={(e) => {
-        if (e.key === "Enter") e.stopPropagation();
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") e.stopPropagation();
       }}
       className="space-y-2 rounded-md border border-line bg-surface p-3"
     >
@@ -79,6 +93,15 @@ export function AddQuestionForm({ sections, onCancel, onSubmit }: AddQuestionFor
         Repeatable (allow multiple entries)
       </label>
 
+      {needsOptions && (
+        <div>
+          <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">
+            {fieldType === "ranking" ? "Items to rank" : "Answer choices"}
+          </label>
+          <OptionsEditor options={options} onChange={setOptions} />
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 pt-1">
         <button
           type="button"
@@ -88,7 +111,7 @@ export function AddQuestionForm({ sections, onCancel, onSubmit }: AddQuestionFor
           Cancel
         </button>
         <Button type="submit" variant="primary" size="sm" disabled={!label.trim() || !section.trim()}>
-          Add
+          {initial ? "Save Changes" : "Add Question"}
         </Button>
       </div>
     </form>

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, ChevronRight, Circle, EyeOff, Minus, Plus, Undo2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Circle, EyeOff, Minus, Pencil, Plus, Undo2 } from "lucide-react";
 import { Client, Question, Questionnaire } from "@/lib/types";
 import { allQuestionsForClient, answerPreview, hiddenQuestionsForClient } from "@/lib/status";
 import { questionsBySection } from "@/lib/questions";
-import { AddQuestionForm } from "./AddQuestionForm";
+import { AddQuestionForm, QuestionFormPayload } from "./AddQuestionForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
+type FormMode = { type: "add" } | { type: "edit"; question: Question };
 
 type RowStatus = "current" | "answered" | "skipped" | "upcoming";
 
@@ -60,12 +62,8 @@ interface SidePanelProps {
   currentId: string | null;
   mode: "internal" | "public";
   onSelect: (id: string) => void;
-  onAddQuestion?: (payload: {
-    label: string;
-    section: string;
-    field_type: Question["field_type"];
-    is_repeatable: boolean;
-  }) => void;
+  onAddQuestion?: (payload: QuestionFormPayload) => void;
+  onUpdateQuestion?: (question: Question, payload: QuestionFormPayload) => void;
   onHideQuestion?: (id: string) => void;
   onUnhideQuestion?: (id: string) => void;
 }
@@ -77,11 +75,12 @@ export function SidePanel({
   mode,
   onSelect,
   onAddQuestion,
+  onUpdateQuestion,
   onHideQuestion,
   onUnhideQuestion,
 }: SidePanelProps) {
   const isInternal = mode === "internal";
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode | null>(null);
   const [pendingHideId, setPendingHideId] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
   const grouped = questionsBySection(allQuestionsForClient(client, questionnaire));
@@ -130,6 +129,16 @@ export function SidePanel({
                         )}
                       </span>
                     </button>
+                    {isInternal && (
+                      <button
+                        type="button"
+                        onClick={() => setFormMode({ type: "edit", question: q })}
+                        aria-label={`Edit "${q.label}"`}
+                        className="shrink-0 rounded-md p-1.5 text-ink-faint opacity-0 transition hover:bg-paper hover:text-ink focus-visible:opacity-100 group-hover/row:opacity-100"
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    )}
                     {isInternal && (
                       <button
                         type="button"
@@ -202,18 +211,23 @@ export function SidePanel({
 
       {isInternal && (
         <div className="border-t border-line p-4">
-          {showAddForm ? (
+          {formMode ? (
             <AddQuestionForm
               sections={grouped.map((g) => g.section)}
-              onCancel={() => setShowAddForm(false)}
+              initial={formMode.type === "edit" ? formMode.question : undefined}
+              onCancel={() => setFormMode(null)}
               onSubmit={(payload) => {
-                onAddQuestion?.(payload);
-                setShowAddForm(false);
+                if (formMode.type === "edit") {
+                  onUpdateQuestion?.(formMode.question, payload);
+                } else {
+                  onAddQuestion?.(payload);
+                }
+                setFormMode(null);
               }}
             />
           ) : (
             <button
-              onClick={() => setShowAddForm(true)}
+              onClick={() => setFormMode({ type: "add" })}
               className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-xs font-medium text-ink-muted outline-hidden transition hover:bg-paper hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-line-strong"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />

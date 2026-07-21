@@ -1,15 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check, Copy } from "lucide-react";
 import { Questionnaire } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { generateClientPassword } from "@/lib/generatePassword";
+import { HubClientCombobox, HubSelection } from "@/components/HubClientCombobox";
+import { useClientStore } from "@/lib/clientStore";
 
 interface NewClientDialogProps {
   questionnaires: Questionnaire[];
   onCancel: () => void;
-  onCreate: (questionnaireId: string, name: string, contactEmails: string[], password: string) => void;
+  onCreate: (
+    questionnaireId: string,
+    name: string,
+    contactEmails: string[],
+    password: string,
+    hub?: HubSelection
+  ) => void;
 }
 
 function parseEmails(input: string): string[] {
@@ -20,7 +29,10 @@ function parseEmails(input: string): string[] {
 }
 
 export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClientDialogProps) {
+  const { clients } = useClientStore();
   const [name, setName] = useState("");
+  const [hubSelection, setHubSelection] = useState<HubSelection | null>(null);
+  const [duplicateOf, setDuplicateOf] = useState<{ id: string; name: string } | null>(null);
   const [questionnaireId, setQuestionnaireId] = useState(questionnaires[0]?.id ?? "");
   const [contactEmailsInput, setContactEmailsInput] = useState("");
   const [password, setPassword] = useState("");
@@ -44,9 +56,19 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!questionnaireId) return;
+
+    if (hubSelection) {
+      const existing = clients.find((c) => c.hub_client_id === hubSelection.hubClientId);
+      if (existing) {
+        setDuplicateOf({ id: existing.id, name: existing.name });
+        return;
+      }
+    }
+    setDuplicateOf(null);
+
     const contactEmails = parseEmails(contactEmailsInput);
     const finalPassword = password || generateClientPassword();
-    onCreate(questionnaireId, name, contactEmails, finalPassword);
+    onCreate(questionnaireId, name, contactEmails, finalPassword, hubSelection ?? undefined);
   }
 
   return (
@@ -60,13 +82,22 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
 
         <div className="mt-4">
           <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Client name</label>
-          <input
-            autoFocus
+          <HubClientCombobox
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Acme Inc."
-            className="w-full rounded-md border border-line px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-ink focus:outline-none focus:ring-2 focus:ring-line"
+            onChange={(value) => {
+              setName(value);
+              setDuplicateOf(null);
+            }}
+            onSelectHubClient={setHubSelection}
           />
+          {duplicateOf && (
+            <p className="mt-1 text-[0.6875rem] text-warning">
+              This client is already in the system as &quot;{duplicateOf.name}&quot;.{" "}
+              <Link href={`/dashboard/clients/${duplicateOf.id}`} className="underline">
+                Go to existing client
+              </Link>
+            </p>
+          )}
         </div>
 
         <div className="mt-4">

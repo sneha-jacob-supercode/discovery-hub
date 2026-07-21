@@ -1,7 +1,23 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { fetchClientHeader } from "@/lib/clientPortal";
+import { Favicon } from "@/components/ui/Favicon";
+
 export default function ClientPortalLayout({ children }: { children: React.ReactNode }) {
+  const params = useParams<{ slug: string }>();
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchClientHeader(params.slug).then(({ faviconUrl }) => {
+      setFaviconUrl(faviconUrl);
+    });
+  }, [params.slug]);
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <header className="flex items-center gap-2 border-b border-line bg-surface px-6 py-3">
+      <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-line bg-surface px-6 py-3">
         <svg
           width="20"
           height="18"
@@ -24,7 +40,14 @@ export default function ClientPortalLayout({ children }: { children: React.React
             fill="currentColor"
           />
         </svg>
-        <p className="text-sm font-semibold tracking-tight text-ink">Questionnaire</p>
+
+        <p className="min-w-0 truncate text-center text-sm font-semibold tracking-tight text-ink">
+          Questionnaire
+        </p>
+
+        <div className="flex items-center justify-end">
+          <Favicon url={faviconUrl} />
+        </div>
       </header>
       {children}
     </div>

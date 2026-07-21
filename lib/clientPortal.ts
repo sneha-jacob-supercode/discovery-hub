@@ -56,11 +56,13 @@ export async function fetchPortalData(
   return { client: normalizeClient(data.client), questionnaire: normalizeQuestionnaire(data.questionnaire) };
 }
 
-export async function fetchClientName(slug: string): Promise<string | null> {
+export async function fetchClientHeader(
+  slug: string
+): Promise<{ name: string | null; faviconUrl: string | null }> {
   const res = await fetch(`/api/client-portal/name?slug=${encodeURIComponent(slug)}`);
-  if (!res.ok) return null;
+  if (!res.ok) return { name: null, faviconUrl: null };
   const data = await res.json().catch(() => null);
-  return data?.name ?? null;
+  return { name: data?.name ?? null, faviconUrl: data?.faviconUrl ?? null };
 }
 
 async function applyAnswerAction(
@@ -81,6 +83,7 @@ export function usePortalClientData(slug: string) {
   const [client, setClient] = useState<Client | null>(null);
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null);
   const [clientName, setClientName] = useState<string | null>(null);
+  const [clientFaviconUrl, setClientFaviconUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"checking" | "needs_verification" | "ready">("checking");
 
   const load = useCallback(async () => {
@@ -99,7 +102,10 @@ export function usePortalClientData(slug: string) {
   }, [load]);
 
   useEffect(() => {
-    fetchClientName(slug).then(setClientName);
+    fetchClientHeader(slug).then(({ name, faviconUrl }) => {
+      setClientName(name);
+      setClientFaviconUrl(faviconUrl);
+    });
   }, [slug]);
 
   const verify = useCallback(
@@ -169,5 +175,5 @@ export function usePortalClientData(slug: string) {
     [saveAnswer, addEntry, removeEntry, skipQuestion]
   );
 
-  return { client, questionnaire, clientName, status, verify, actions };
+  return { client, questionnaire, clientName, clientFaviconUrl, status, verify, actions };
 }

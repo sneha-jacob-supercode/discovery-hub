@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  domain_not_allowed: "That email isn't part of the supercode.in team.",
+  domain_not_allowed: "That email isn't part of the supercode team.",
   auth_failed: "That link didn't work — request a new one below.",
 };
 
@@ -27,7 +27,7 @@ function LoginForm() {
 
     const trimmed = email.trim();
     if (!trimmed.toLowerCase().endsWith("@supercode.in")) {
-      setError("Use your @supercode.in email address.");
+      setError("Use your supercode email address.");
       return;
     }
 
@@ -51,7 +51,7 @@ function LoginForm() {
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center px-6">
       <div className="w-full rounded-lg border border-line bg-surface px-6 py-8">
         <h1 className="text-lg font-semibold text-ink">Sign in</h1>
-        <p className="mt-1 text-sm text-ink-muted">supercode.in team members only.</p>
+        <p className="mt-1 text-sm text-ink-muted">supercode team members only.</p>
 
         {status === "sent" ? (
           <p className="mt-6 text-sm text-ink">
