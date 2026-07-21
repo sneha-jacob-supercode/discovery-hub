@@ -28,7 +28,14 @@ export default function ClientPortalPage() {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center px-6 text-center">
         <h1 className="text-2xl font-semibold text-ink">{client.name} Discovery Questionnaire</h1>
-        <Button variant="primary" onClick={() => setStarted(true)} className="mt-6">
+        <p className="mt-4 max-w-md text-sm leading-6 text-ink-muted">
+          This questionnaire helps us understand your business, its context, your target audience, brand, market positioning, and any measurable goals or KPIs that will guide the project.
+        </p>
+        <Button
+          variant="primary"
+          onClick={() => setStarted(true)}
+          className="mt-6 cursor-pointer border border-transparent transition-colors hover:border-black hover:bg-white hover:text-black"
+        >
           Start Now
         </Button>
       </div>
