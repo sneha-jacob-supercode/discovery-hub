@@ -24,7 +24,7 @@ export default function ClientPortalLayout({ children }: { children: React.React
             fill="currentColor"
           />
         </svg>
-        <p className="text-sm font-semibold tracking-tight text-ink">Discovery Hub</p>
+        <p className="text-sm font-semibold tracking-tight text-ink">Questionnaire</p>
       </header>
       {children}
     </div>

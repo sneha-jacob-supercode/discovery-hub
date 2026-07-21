@@ -42,7 +42,7 @@ export function getProgress(client: Client, questionnaire: Questionnaire): Progr
 
 export function getClientStatus(client: Client, questionnaire: Questionnaire): ClientStatus {
   const { total, answered, reached } = getProgress(client, questionnaire);
-  if (reached === 0) return "not_started";
+  if (answered === 0) return "not_started";
   if (reached >= total) return "complete";
   if (answered === total) return "complete";
   return "in_progress";

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 export default function ClientPortalPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
-  const { client, questionnaire, status, verify, actions } = usePortalClientData(slug);
+  const { client, questionnaire, clientName, status, verify, actions } = usePortalClientData(slug);
   const [started, setStarted] = useState(false);
 
   if (status === "checking") {
@@ -17,7 +17,7 @@ export default function ClientPortalPage() {
   }
 
   if (status === "needs_verification") {
-    return <VerifyScreen onVerify={verify} />;
+    return <VerifyScreen clientName={clientName} onVerify={verify} />;
   }
 
   if (!client || !questionnaire) {
@@ -41,8 +41,10 @@ export default function ClientPortalPage() {
 }
 
 function VerifyScreen({
+  clientName,
   onVerify,
 }: {
+  clientName: string | null;
   onVerify: (email: string, password: string) => Promise<boolean>;
 }) {
   const [email, setEmail] = useState("");
@@ -59,7 +61,9 @@ function VerifyScreen({
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center px-6">
       <div className="w-full rounded-lg border border-line bg-surface px-6 py-8">
-        <h1 className="text-lg font-semibold text-ink">Verify your access</h1>
+        <h1 className="text-lg font-semibold text-ink">
+          Access {clientName ? `${clientName}'s` : "this"} questionnaire
+        </h1>
         <p className="mt-1 text-sm text-ink-muted">
           Enter the email and password you were sent for this project.
         </p>
@@ -94,6 +98,13 @@ function VerifyScreen({
             {status === "checking" ? "Checking…" : "Continue"}
           </Button>
         </form>
+
+        <p className="mt-4 text-center text-xs text-ink-faint">
+          Unable to login? Please email us at{" "}
+          <a href="mailto:contact@supercode.in" className="font-medium text-ink-muted hover:text-ink">
+            contact@supercode.in
+          </a>
+        </p>
       </div>
     </div>
   );

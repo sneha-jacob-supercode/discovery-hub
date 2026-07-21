@@ -100,7 +100,8 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-paper"
                 >
                   <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  {copiedItem === "md" ? "Copied!" : "Copy data as md"}
+                  {copiedItem === "md" ? "Copied!" : "Copy as md"}
+                  
                 </button>
                 <button
                   onClick={() => {

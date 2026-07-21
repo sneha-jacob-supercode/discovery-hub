@@ -3,9 +3,11 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Link2, FileText } from "lucide-react";
 import { useClientStore } from "@/lib/clientStore";
 import { useQuestionnaireStore } from "@/lib/questionnaireStore";
+import { Client, Questionnaire } from "@/lib/types";
+import { buildClientMarkdown } from "@/lib/markdownExport";
 import { GuidedEntryView } from "@/components/GuidedEntry/GuidedEntryView";
 import { ManageAccessDialog } from "@/components/ManageAccessDialog";
 import { Button } from "@/components/ui/Button";
@@ -67,6 +69,7 @@ function ClientDetailContent() {
           <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
           Manage Access
         </Button>
+        <ClientLinkActions client={client} questionnaire={questionnaire} />
       </header>
 
       {showManageAccess && (
@@ -103,5 +106,34 @@ function ClientDetailContent() {
         }}
       />
     </div>
+  );
+}
+
+function ClientLinkActions({ client, questionnaire }: { client: Client; questionnaire: Questionnaire }) {
+  const [copiedItem, setCopiedItem] = useState<"url" | "md" | null>(null);
+
+  function copyUrl() {
+    navigator.clipboard.writeText(`${window.location.origin}/client/${client.slug}`);
+    setCopiedItem("url");
+    setTimeout(() => setCopiedItem((v) => (v === "url" ? null : v)), 1200);
+  }
+
+  function copyMarkdown() {
+    navigator.clipboard.writeText(buildClientMarkdown(client, questionnaire));
+    setCopiedItem("md");
+    setTimeout(() => setCopiedItem((v) => (v === "md" ? null : v)), 1200);
+  }
+
+  return (
+    <>
+      <Button variant="secondary" size="sm" onClick={copyUrl} className="shrink-0">
+        <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+        {copiedItem === "url" ? "Copied!" : "Copy client link"}
+      </Button>
+      <Button variant="secondary" size="sm" onClick={copyMarkdown} className="shrink-0">
+        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+        {copiedItem === "md" ? "Copied!" : "Copy as md"}
+      </Button>
+    </>
   );
 }

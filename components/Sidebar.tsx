@@ -25,7 +25,7 @@ export function Sidebar() {
           <path d="M34.4956 42H12.8118C12.6694 41.9986 12.6178 41.8026 12.742 41.7291L47.4878 21.0201C47.612 20.9466 47.7502 21.0892 47.679 21.2175L36.8392 40.6038C36.3562 41.4683 35.4629 42 34.4956 42Z" fill="currentColor" />
           <path d="M36.8387 1.39492L47.679 20.7826C47.7502 20.9108 47.612 21.0535 47.4878 20.98L12.742 0.269476C12.6178 0.195983 12.6694 2.9215e-06 12.8118 2.9215e-06H34.4965C35.4638 -0.00143811 36.3572 0.530302 36.8401 1.39492H36.8387Z" fill="currentColor" />
         </svg>
-        <p className="text-sm font-semibold tracking-tight text-ink">Discovery Hub</p>
+        <p className="text-sm font-semibold tracking-tight text-ink">Questionnaire</p>
       </div>
 
       <nav className="mt-6 flex flex-col gap-1">
