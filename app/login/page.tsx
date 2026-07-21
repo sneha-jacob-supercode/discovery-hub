@@ -1,51 +1,108 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  domain_not_allowed: "That email isn't part of the supercode team.",
-  auth_failed: "That link didn't work — request a new one below.",
-};
+const CODE_TTL_MS = 10 * 60 * 1000;
+
+function formatCountdown(ms: number) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
-  const callbackError = searchParams.get("error");
 
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [error, setError] = useState<string | null>(
-    callbackError ? (ERROR_MESSAGES[callbackError] ?? "Something went wrong. Please try again.") : null
-  );
+  const [otp, setOtp] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "verifying">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [remainingMs, setRemainingMs] = useState(0);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  useEffect(() => {
+    if (!expiresAt) return;
+    const tick = () => setRemainingMs(Math.max(0, expiresAt - Date.now()));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
 
-    const trimmed = email.trim();
-    if (!trimmed.toLowerCase().endsWith("@supercode.in")) {
-      setError("Use your supercode email address.");
-      return;
-    }
-
+  async function requestOtp(targetEmail: string) {
     setStatus("sending");
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email: trimmed,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      },
-    });
-
-    if (signInError) {
-      setStatus("error");
-      setError("Couldn't send the link. Please try again.");
-      return;
+    setError(null);
+    try {
+      const res = await fetch("/api/internal-auth/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "Something went wrong. Please try again.");
+        setStatus("idle");
+        return false;
+      }
+      setExpiresAt(Date.now() + CODE_TTL_MS);
+      setStatus("idle");
+      return true;
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setStatus("idle");
+      return false;
     }
-    setStatus("sent");
   }
+
+  async function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    const ok = await requestOtp(trimmed);
+    if (ok) {
+      setOtp("");
+      setStep("code");
+    }
+  }
+
+  async function handleCodeSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus("verifying");
+    setError(null);
+    try {
+      const res = await fetch("/api/internal-auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), otp: otp.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setError("That code is invalid or has expired.");
+        setStatus("idle");
+        return;
+      }
+      window.location.href = next;
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setStatus("idle");
+    }
+  }
+
+  async function handleResend() {
+    setNotice(null);
+    const ok = await requestOtp(email.trim());
+    if (ok) {
+      setOtp("");
+      setNotice("Code resent.");
+    }
+  }
+
+  const codeExpired = expiresAt !== null && remainingMs <= 0;
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center px-6">
@@ -53,12 +110,8 @@ function LoginForm() {
         <h1 className="text-lg font-semibold text-ink">Sign in</h1>
         <p className="mt-1 text-sm text-ink-muted">supercode team members only.</p>
 
-        {status === "sent" ? (
-          <p className="mt-6 text-sm text-ink">
-            Check your inbox — we sent a sign-in link to <span className="font-medium">{email.trim()}</span>.
-          </p>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+        {step === "email" ? (
+          <form onSubmit={handleEmailSubmit} className="mt-6 flex flex-col gap-3">
             <input
               type="email"
               value={email}
@@ -69,7 +122,42 @@ function LoginForm() {
             />
             {error && <p className="text-sm text-danger">{error}</p>}
             <Button variant="primary" type="submit" disabled={status === "sending" || !email.trim()}>
-              {status === "sending" ? "Sending…" : "Send magic link"}
+              {status === "sending" ? "Sending…" : "Send code"}
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handleCodeSubmit} className="mt-6 flex flex-col gap-3">
+            <p className="text-sm text-ink">
+              We sent a code to <span className="font-medium">{email.trim()}</span> on Slack.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="6-digit code"
+              autoFocus
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm tracking-widest text-ink placeholder:text-ink-faint focus:border-ink focus:outline-none focus:ring-2 focus:ring-line"
+            />
+            <p className="text-xs text-ink-faint">
+              {codeExpired ? "Code expired — request a new one." : `Expires in ${formatCountdown(remainingMs)}`}
+            </p>
+            {error && <p className="text-sm text-danger">{error}</p>}
+            {notice && <p className="text-sm text-ink-muted">{notice}</p>}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={status === "verifying" || !otp.trim() || codeExpired}
+            >
+              {status === "verifying" ? "Verifying…" : "Verify code"}
+            </Button>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={handleResend}
+              disabled={status === "sending"}
+            >
+              {status === "sending" ? "Resending…" : "Resend code"}
             </Button>
           </form>
         )}

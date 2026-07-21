@@ -1,11 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { SESSION_COOKIE_NAME, verifySession } from "@/lib/internalAuth";
 
-const PUBLIC_PREFIXES = ["/client", "/api", "/auth"];
-
-function isAllowedEmail(email: string | undefined | null) {
-  return !!email && email.toLowerCase().endsWith("@supercode.in");
-}
+const PUBLIC_PREFIXES = ["/client", "/api"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -14,16 +10,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { response, user } = await updateSession(request);
-
-  const authed = isAllowedEmail(user?.email);
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const session = await verifySession(token);
+  const authed = !!session;
 
   if (pathname === "/login") {
     if (authed) {
       const next = request.nextUrl.searchParams.get("next") || "/";
       return NextResponse.redirect(new URL(next, request.url));
     }
-    return response;
+    return NextResponse.next();
   }
 
   if (!authed) {
@@ -32,7 +28,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
