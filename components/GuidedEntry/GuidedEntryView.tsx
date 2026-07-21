@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { orderedQuestionsForClient, firstOpenQuestion, getProgress } from "@/lib/status";
 import { AnswerValue, Answer, Client, Question, Questionnaire } from "@/lib/types";
 import { SidePanel } from "./SidePanel";
@@ -64,6 +64,7 @@ export function GuidedEntryView({
     () => initialQuestionId ?? firstOpenQuestion(client, questionnaire)?.id ?? null
   );
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
+  const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
 
   const progress = getProgress(client, questionnaire);
   const currentIndex = currentId ? flatQuestions.findIndex((q) => q.id === currentId) : -1;
@@ -139,21 +140,49 @@ export function GuidedEntryView({
         <span className="font-mono text-[0.6875rem] text-ink-faint">{pct}%</span>
       </div>
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Side panel — static on desktop, drawer on mobile */}
-        <div className="hidden w-[22.5rem] shrink-0 border-r border-line bg-surface md:block">
-          <SidePanel
-            client={client}
-            questionnaire={questionnaire}
-            currentId={currentId}
-            mode={mode}
-            onSelect={(id) => setCurrentId(id)}
-            onAddQuestion={isInternal ? (payload) => actions.addCustomQuestion?.(payload) : undefined}
-            onUpdateQuestion={isInternal ? handleUpdateQuestion : undefined}
-            onHideQuestion={isInternal ? handleHideQuestion : undefined}
-            onUnhideQuestion={isInternal ? (id) => actions.unhideQuestion?.(id) : undefined}
-          />
+        <div
+          id="side-panel-outline"
+          aria-hidden={sidePanelCollapsed}
+          inert={sidePanelCollapsed}
+          className={`hidden shrink-0 overflow-hidden bg-surface transition-all duration-200 ease-in-out md:block ${
+            sidePanelCollapsed
+              ? "w-0 border-r-0"
+              : "w-[22.5rem] border-r border-line"
+          }`}
+        >
+          <div className="w-[22.5rem]">
+            <SidePanel
+              client={client}
+              questionnaire={questionnaire}
+              currentId={currentId}
+              mode={mode}
+              onSelect={(id) => setCurrentId(id)}
+              onAddQuestion={isInternal ? (payload) => actions.addCustomQuestion?.(payload) : undefined}
+              onUpdateQuestion={isInternal ? handleUpdateQuestion : undefined}
+              onHideQuestion={isInternal ? handleHideQuestion : undefined}
+              onUnhideQuestion={isInternal ? (id) => actions.unhideQuestion?.(id) : undefined}
+            />
+          </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setSidePanelCollapsed((v) => !v)}
+          aria-label={sidePanelCollapsed ? "Expand question outline" : "Collapse question outline"}
+          aria-expanded={!sidePanelCollapsed}
+          aria-controls="side-panel-outline"
+          className={`absolute top-4 z-20 hidden h-9 w-9 items-center justify-center rounded-full text-ink-faint transition-all duration-200 ease-in-out hover:bg-paper hover:text-ink md:flex ${
+            sidePanelCollapsed ? "left-10" : "left-[22.75rem]"
+          }`}
+        >
+          {sidePanelCollapsed ? (
+            <PanelLeftOpen className="h-5 w-5" />
+          ) : (
+            <PanelLeftClose className="h-5 w-5" />
+          )}
+        </button>
 
         {sidePanelOpen && (
           <div className="fixed inset-0 z-30 md:hidden">

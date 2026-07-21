@@ -3,9 +3,9 @@ import { questionsBySection } from "./questions";
 
 function applyOverride(
   question: Question,
-  overrides: Client["question_overrides"]
+  overrides?: Client["question_overrides"]
 ): Question {
-  const patch = overrides[question.id];
+  const patch = overrides?.[question.id];
   return patch ? { ...question, ...patch } : question;
 }
 
