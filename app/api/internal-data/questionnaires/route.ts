@@ -44,6 +44,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    case "update_questionnaire": {
+      const { questionnaireId, patch } = body;
+      const { error } = await supabaseAdmin.from("questionnaires").update(patch).eq("id", questionnaireId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ ok: true });
+    }
+
+    case "delete_questionnaire": {
+      const { error } = await supabaseAdmin.from("questionnaires").delete().eq("id", body.questionnaireId);
+      if (error) {
+        if (error.code === "23503") {
+          return NextResponse.json({ error: "questionnaire_in_use" }, { status: 409 });
+        }
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     case "add_question": {
       const { error } = await supabaseAdmin.from("questions").insert(body.question);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });

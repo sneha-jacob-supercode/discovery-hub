@@ -95,6 +95,8 @@ interface QuestionnaireStoreValue {
   isHydrated: boolean;
   getQuestionnaire: (id: string) => Questionnaire | undefined;
   createQuestionnaire: (name: string) => Promise<Questionnaire>;
+  updateQuestionnaire: (questionnaireId: string, name: string) => Promise<void>;
+  deleteQuestionnaire: (questionnaireId: string) => Promise<void>;
   addQuestion: (questionnaireId: string, question: Omit<Question, "id">) => Promise<Question>;
   updateQuestion: (
     questionnaireId: string,
@@ -187,6 +189,35 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       setQuestionnaires((prev) => prev.filter((q) => q.id !== questionnaire.id));
     }
     return questionnaire;
+  }, []);
+
+  const updateQuestionnaire = useCallback(
+    async (questionnaireId: string, name: string) => {
+      const label = name.trim();
+      if (!label) return;
+      const previous = questionnaires.find((q) => q.id === questionnaireId);
+      const updatedAt = nowIso();
+      setQuestionnaires((prev) =>
+        updateQuestionnaireList(prev, questionnaireId, (q) => ({ ...q, name: label, last_updated: updatedAt }))
+      );
+      try {
+        await postQuestionnaireAction("update_questionnaire", {
+          questionnaireId,
+          patch: { name: label, last_updated: updatedAt },
+        });
+      } catch (err) {
+        console.error("Failed to update questionnaire", err);
+        if (previous) {
+          setQuestionnaires((prev) => updateQuestionnaireList(prev, questionnaireId, () => previous));
+        }
+      }
+    },
+    [questionnaires]
+  );
+
+  const deleteQuestionnaire = useCallback(async (questionnaireId: string) => {
+    await postQuestionnaireAction("delete_questionnaire", { questionnaireId });
+    setQuestionnaires((prev) => prev.filter((q) => q.id !== questionnaireId));
   }, []);
 
   const addQuestion = useCallback(
@@ -321,6 +352,8 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       isHydrated,
       getQuestionnaire,
       createQuestionnaire,
+      updateQuestionnaire,
+      deleteQuestionnaire,
       addQuestion,
       updateQuestion,
       removeQuestion,
@@ -332,6 +365,8 @@ export function QuestionnaireStoreProvider({ children }: { children: React.React
       isHydrated,
       getQuestionnaire,
       createQuestionnaire,
+      updateQuestionnaire,
+      deleteQuestionnaire,
       addQuestion,
       updateQuestion,
       removeQuestion,

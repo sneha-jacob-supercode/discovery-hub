@@ -110,7 +110,7 @@ function LoginForm() {
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center px-6">
       <div className="w-full rounded-lg border border-line bg-surface px-6 py-8">
         <h1 className="text-lg font-semibold text-ink">Sign in</h1>
-        <p className="mt-1 text-sm text-ink-muted">supercode team members only.</p>
+        <p className="mt-1 text-sm text-ink-muted">Supercode team members only.</p>
 
         {step === "email" ? (
           <form onSubmit={handleEmailSubmit} className="mt-6 flex flex-col gap-3">

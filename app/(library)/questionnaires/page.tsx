@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useQuestionnaireStore } from "@/lib/questionnaireStore";
 import { Button } from "@/components/ui/Button";
 import { NewQuestionnaireDialog } from "@/components/NewQuestionnaireDialog";
-import { formatRelativeTime } from "@/lib/format";
+import { QuestionnaireRow } from "@/components/QuestionnaireRow";
 
 export default function QuestionnairesPage() {
   const { questionnaires, isHydrated, createQuestionnaire } = useQuestionnaireStore();
@@ -49,23 +48,9 @@ export default function QuestionnairesPage() {
             </p>
           </div>
         ) : (
-          <div className="rounded-lg border border-line bg-surface">
-            {questionnaires.map((q, i) => (
-              <Link
-                key={q.id}
-                href={`/questionnaires/${q.id}`}
-                className={`flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-paper ${
-                  i > 0 ? "border-t border-line" : ""
-                }`}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-ink">{q.name}</p>
-                  <p className="mt-0.5 font-mono text-[0.6875rem] text-ink-faint">
-                    {q.questions.length} question{q.questions.length === 1 ? "" : "s"} · Updated{" "}
-                    {formatRelativeTime(q.last_updated)}
-                  </p>
-                </div>
-              </Link>
+          <div className="divide-y divide-line rounded-lg border border-line bg-surface">
+            {questionnaires.map((q) => (
+              <QuestionnaireRow key={q.id} questionnaire={q} />
             ))}
           </div>
         )}

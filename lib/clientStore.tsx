@@ -133,6 +133,7 @@ interface ClientStoreValue {
   updateQuestionOverride: (clientId: string, questionId: string, patch: QuestionPatch) => Promise<void>;
   updateContactEmails: (clientId: string, contactEmails: string[]) => Promise<void>;
   setClientPassword: (clientId: string, password: string) => Promise<void>;
+  getClientPassword: (clientId: string) => Promise<string | null>;
 }
 
 const ClientStoreContext = createContext<ClientStoreValue | null>(null);
@@ -619,6 +620,16 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  const getClientPassword = useCallback(async (clientId: string) => {
+    try {
+      const data = await postClientAction("get_client_password", { clientId });
+      return (data?.password as string | null) ?? null;
+    } catch (err) {
+      console.error("Failed to get client password", err);
+      return null;
+    }
+  }, []);
+
   const value = useMemo<ClientStoreValue>(
     () => ({
       clients,
@@ -638,6 +649,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       updateQuestionOverride,
       updateContactEmails,
       setClientPassword,
+      getClientPassword,
     }),
     [
       clients,
@@ -657,6 +669,7 @@ export function ClientStoreProvider({ children }: { children: React.ReactNode })
       updateQuestionOverride,
       updateContactEmails,
       setClientPassword,
+      getClientPassword,
     ]
   );
 

@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Check, ChevronDown, ChevronRight, Circle, EyeOff, Minus, Pencil, Plus, Undo2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  EyeOff,
+  Minus,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Undo2,
+} from "lucide-react";
 import { Client, Question, Questionnaire } from "@/lib/types";
 import { allQuestionsForClient, answerPreview, hiddenQuestionsForClient } from "@/lib/status";
 import { questionsBySection } from "@/lib/questions";
@@ -83,8 +94,21 @@ export function SidePanel({
   const [formMode, setFormMode] = useState<FormMode | null>(null);
   const [pendingHideId, setPendingHideId] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const grouped = questionsBySection(allQuestionsForClient(client, questionnaire));
   const hidden = isInternal ? hiddenQuestionsForClient(client, questionnaire) : [];
+
+  useEffect(() => {
+    if (!menuOpenId) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpenId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpenId]);
 
   return (
     <div className="flex h-full flex-col">
@@ -130,24 +154,48 @@ export function SidePanel({
                       </span>
                     </button>
                     {isInternal && (
-                      <button
-                        type="button"
-                        onClick={() => setFormMode({ type: "edit", question: q })}
-                        aria-label={`Edit "${q.label}"`}
-                        className="shrink-0 rounded-md p-1.5 text-ink-faint opacity-0 transition hover:bg-paper hover:text-ink focus-visible:opacity-100 group-hover/row:opacity-100"
+                      <div
+                        ref={menuOpenId === q.id ? menuRef : undefined}
+                        className="relative shrink-0"
                       >
-                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    )}
-                    {isInternal && (
-                      <button
-                        type="button"
-                        onClick={() => setPendingHideId(q.id)}
-                        aria-label={`Remove "${q.label}" from this client`}
-                        className="shrink-0 rounded-md p-1.5 text-ink-faint opacity-0 transition hover:bg-paper hover:text-warning focus-visible:opacity-100 group-hover/row:opacity-100"
-                      >
-                        <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setMenuOpenId((open) => (open === q.id ? null : q.id))}
+                          aria-label={`More actions for "${q.label}"`}
+                          aria-expanded={menuOpenId === q.id}
+                          className={`rounded-md p-1.5 text-ink-faint transition hover:bg-paper hover:text-ink focus-visible:opacity-100 group-hover/row:opacity-100 ${
+                            menuOpenId === q.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                        {menuOpenId === q.id && (
+                          <div className="absolute right-0 top-full z-10 mt-1 w-36 overflow-hidden rounded-md border border-line bg-surface py-1 shadow-lg">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuOpenId(null);
+                                setFormMode({ type: "edit", question: q });
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-paper"
+                            >
+                              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuOpenId(null);
+                                setPendingHideId(q.id);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-ink transition hover:bg-paper hover:text-warning"
+                            >
+                              <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                              Hide
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </li>
                 );

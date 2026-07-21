@@ -98,7 +98,6 @@ function ClientDetailContent() {
                 // regenerated again from this same dialog if this failed.
               }
             }
-            setShowManageAccess(false);
           }}
         />
       )}

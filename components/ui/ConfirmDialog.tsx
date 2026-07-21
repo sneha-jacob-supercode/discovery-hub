@@ -6,6 +6,8 @@ interface ConfirmDialogProps {
   title: string;
   description?: string;
   confirmLabel?: string;
+  error?: string | null;
+  confirmDisabled?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -14,6 +16,8 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Confirm",
+  error,
+  confirmDisabled = false,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -23,6 +27,7 @@ export function ConfirmDialog({
       <div className="relative w-full max-w-sm rounded-lg border border-line bg-surface p-5 shadow-xl">
         <h2 className="text-sm font-semibold text-ink">{title}</h2>
         {description && <p className="mt-2 text-sm text-ink-muted">{description}</p>}
+        {error && <p className="mt-2 text-sm text-danger">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
@@ -31,7 +36,7 @@ export function ConfirmDialog({
           >
             Cancel
           </button>
-          <Button variant="primary" size="sm" onClick={onConfirm}>
+          <Button variant="primary" size="sm" onClick={onConfirm} disabled={confirmDisabled}>
             {confirmLabel}
           </Button>
         </div>

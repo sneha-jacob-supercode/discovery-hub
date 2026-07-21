@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
-interface NewQuestionnaireDialogProps {
+interface EditQuestionnaireDialogProps {
+  initialName: string;
   onCancel: () => void;
-  onCreate: (name: string) => Promise<void>;
+  onSave: (name: string) => Promise<void>;
 }
 
-export function NewQuestionnaireDialog({ onCancel, onCreate }: NewQuestionnaireDialogProps) {
-  const [name, setName] = useState("");
+export function EditQuestionnaireDialog({ initialName, onCancel, onSave }: EditQuestionnaireDialogProps) {
+  const [name, setName] = useState(initialName);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -17,7 +18,7 @@ export function NewQuestionnaireDialog({ onCancel, onCreate }: NewQuestionnaireD
     if (!name.trim()) return;
     setIsSubmitting(true);
     try {
-      await onCreate(name.trim());
+      await onSave(name.trim());
     } finally {
       setIsSubmitting(false);
     }
@@ -30,7 +31,7 @@ export function NewQuestionnaireDialog({ onCancel, onCreate }: NewQuestionnaireD
         onSubmit={handleSubmit}
         className="relative w-full max-w-sm rounded-lg border border-line bg-surface p-5 shadow-xl"
       >
-        <h2 className="text-sm font-semibold text-ink">New questionnaire</h2>
+        <h2 className="text-sm font-semibold text-ink">Rename questionnaire</h2>
 
         <div className="mt-4">
           <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">Questionnaire name</label>
@@ -53,7 +54,7 @@ export function NewQuestionnaireDialog({ onCancel, onCreate }: NewQuestionnaireD
             Cancel
           </button>
           <Button type="submit" variant="primary" size="sm" disabled={!name.trim() || isSubmitting}>
-            {isSubmitting ? "Creating…" : "Create"}
+            {isSubmitting ? "Saving…" : "Save"}
           </Button>
         </div>
       </form>

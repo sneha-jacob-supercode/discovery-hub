@@ -18,7 +18,7 @@ interface NewClientDialogProps {
     contactEmails: string[],
     password: string,
     hub?: HubSelection
-  ) => void;
+  ) => Promise<void>;
 }
 
 function parseEmails(input: string): string[] {
@@ -37,6 +37,7 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
   const [contactEmailsInput, setContactEmailsInput] = useState("");
   const [password, setPassword] = useState("");
   const [copied, setCopied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleEmailsChange(value: string) {
     setContactEmailsInput(value);
@@ -53,7 +54,7 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
     setTimeout(() => setCopied(false), 1200);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!questionnaireId) return;
 
@@ -68,12 +69,17 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
 
     const contactEmails = parseEmails(contactEmailsInput);
     const finalPassword = password || generateClientPassword();
-    onCreate(questionnaireId, name, contactEmails, finalPassword, hubSelection ?? undefined);
+    setIsSubmitting(true);
+    try {
+      await onCreate(questionnaireId, name, contactEmails, finalPassword, hubSelection ?? undefined);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/30" onClick={onCancel} />
+      <div className="absolute inset-0 bg-black/30" onClick={isSubmitting ? undefined : onCancel} />
       <form
         onSubmit={handleSubmit}
         className="relative w-full max-w-sm rounded-lg border border-line bg-surface p-5 shadow-xl"
@@ -186,12 +192,13 @@ export function NewClientDialog({ questionnaires, onCancel, onCreate }: NewClien
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+            disabled={isSubmitting}
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             Cancel
           </button>
-          <Button type="submit" variant="primary" size="sm" disabled={!questionnaireId}>
-            Create
+          <Button type="submit" variant="primary" size="sm" disabled={!questionnaireId || isSubmitting}>
+            {isSubmitting ? "Creating…" : "Create"}
           </Button>
         </div>
       </form>
