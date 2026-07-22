@@ -11,6 +11,7 @@ interface ManageAccessDialogProps {
   client: Client;
   onCancel: () => void;
   onSave: (contactEmails: string[], newPassword?: string) => Promise<void>;
+  notice?: string;
 }
 
 function parseEmails(input: string): string[] {
@@ -20,8 +21,12 @@ function parseEmails(input: string): string[] {
     .filter(Boolean);
 }
 
-export function ManageAccessDialog({ client, onCancel, onSave }: ManageAccessDialogProps) {
+const NO_USERS_NOTICE =
+  "No users have been added yet. Add a contact email below so this client can open the link.";
+
+export function ManageAccessDialog({ client, onCancel, onSave, notice: initialNotice }: ManageAccessDialogProps) {
   const { getClientPassword } = useClientStore();
+  const [notice, setNotice] = useState<string | undefined>(initialNotice);
   const [contactEmailsInput, setContactEmailsInput] = useState(client.contact_emails.join("\n"));
   const [currentPassword, setCurrentPassword] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState<string | null>(null);
@@ -44,7 +49,10 @@ export function ManageAccessDialog({ client, onCancel, onSave }: ManageAccessDia
   function handleCopyBoth() {
     if (!copyablePassword) return;
     const emails = parseEmails(contactEmailsInput);
-    const text = `Email: ${emails.join(", ")}\nPassword: ${copyablePassword}`;
+    if (emails.length === 0) {
+      setNotice(NO_USERS_NOTICE);
+    }
+    const text = `Your login credentials to access the questionnaire are:\nEmail: ${emails.join(", ")}\nPassword: ${copyablePassword}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
@@ -73,7 +81,7 @@ export function ManageAccessDialog({ client, onCancel, onSave }: ManageAccessDia
         className="relative w-full max-w-sm rounded-lg border border-line bg-surface p-5 shadow-xl"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-ink">Manage access</h2>
+          <h2 className="min-w-0 truncate text-sm font-semibold text-ink">Manage Access to {client.name}</h2>
           <button
             type="button"
             onClick={onCancel}
@@ -84,6 +92,12 @@ export function ManageAccessDialog({ client, onCancel, onSave }: ManageAccessDia
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
+
+        {notice && (
+          <p className="mt-3 rounded-md border border-line bg-paper px-3 py-2 text-[0.6875rem] text-ink-muted">
+            {notice}
+          </p>
+        )}
 
         <div className="mt-4">
           <label className="mb-1 block text-[0.6875rem] font-medium text-ink-muted">

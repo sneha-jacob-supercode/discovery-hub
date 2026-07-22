@@ -10,18 +10,21 @@ import { formatRelativeTime } from "@/lib/format";
 import { buildClientMarkdown } from "@/lib/markdownExport";
 import { buttonClasses } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ManageAccessDialog } from "@/components/ManageAccessDialog";
 import { Badge } from "@/components/ui/Badge";
 import { Favicon } from "@/components/ui/Favicon";
 import { useClientStore } from "@/lib/clientStore";
 
 export function ClientCard({ client, questionnaire }: { client: Client; questionnaire: Questionnaire }) {
   const router = useRouter();
-  const { deleteClient, duplicateClient } = useClientStore();
+  const { deleteClient, duplicateClient, updateContactEmails, setClientPassword } = useClientStore();
   const progress = getProgress(client, questionnaire);
   const pct = progress.total === 0 ? 0 : Math.round((progress.answered / progress.total) * 100);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showNoUsersPrompt, setShowNoUsersPrompt] = useState(false);
+  const [showManageAccess, setShowManageAccess] = useState(false);
   const [copiedItem, setCopiedItem] = useState<"url" | "md" | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +51,9 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
   function copyUrl() {
     navigator.clipboard.writeText(`${window.location.origin}/client/${client.slug}`);
     setCopiedItem("url");
+    if (client.contact_emails.length === 0) {
+      setShowNoUsersPrompt(true);
+    }
   }
 
   function copyMarkdown() {
@@ -170,6 +176,41 @@ export function ClientCard({ client, questionnaire }: { client: Client; question
             onConfirm={() => {
               deleteClient(client.id);
               setShowDeleteConfirm(false);
+            }}
+          />
+        </div>
+      )}
+
+      {showNoUsersPrompt && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ConfirmDialog
+            title="No users have been added"
+            description="The link is copied, but no users have been added for this client yet. Add a contact email so this client can open the link."
+            confirmLabel="Add users"
+            onCancel={() => setShowNoUsersPrompt(false)}
+            onConfirm={() => {
+              setShowNoUsersPrompt(false);
+              setShowManageAccess(true);
+            }}
+          />
+        </div>
+      )}
+
+      {showManageAccess && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ManageAccessDialog
+            client={client}
+            onCancel={() => setShowManageAccess(false)}
+            onSave={async (contactEmails, newPassword) => {
+              await updateContactEmails(client.id, contactEmails);
+              if (newPassword) {
+                try {
+                  await setClientPassword(client.id, newPassword);
+                } catch {
+                  // updateContactEmails already succeeded; the password can be
+                  // regenerated again from this same dialog if this failed.
+                }
+              }
             }}
           />
         </div>

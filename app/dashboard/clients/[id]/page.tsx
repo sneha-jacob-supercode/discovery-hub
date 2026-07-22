@@ -41,6 +41,7 @@ function ClientDetailContent() {
   } = useClientStore();
   const { getQuestionnaire, isHydrated: questionnairesHydrated } = useQuestionnaireStore();
   const [showManageAccess, setShowManageAccess] = useState(false);
+  const [manageAccessNotice, setManageAccessNotice] = useState<string | null>(null);
 
   const clientId = params.id;
   const client = getClient(clientId);
@@ -77,17 +78,38 @@ function ClientDetailContent() {
             </Badge>
           )}
         </div>
-        <Button variant="secondary" size="sm" onClick={() => setShowManageAccess(true)} className="shrink-0">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setManageAccessNotice(null);
+            setShowManageAccess(true);
+          }}
+          className="shrink-0"
+        >
           <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
           Manage Access
         </Button>
-        <ClientLinkActions client={client} questionnaire={questionnaire} />
+        <ClientLinkActions
+          client={client}
+          questionnaire={questionnaire}
+          onNoContactAfterCopy={() => {
+            setManageAccessNotice(
+              "No users have been added yet. Add a contact email below so this client can open the link.",
+            );
+            setShowManageAccess(true);
+          }}
+        />
       </header>
 
       {showManageAccess && (
         <ManageAccessDialog
           client={client}
-          onCancel={() => setShowManageAccess(false)}
+          notice={manageAccessNotice ?? undefined}
+          onCancel={() => {
+            setShowManageAccess(false);
+            setManageAccessNotice(null);
+          }}
           onSave={async (contactEmails, newPassword) => {
             await updateContactEmails(clientId, contactEmails);
             if (newPassword) {
@@ -122,13 +144,24 @@ function ClientDetailContent() {
   );
 }
 
-function ClientLinkActions({ client, questionnaire }: { client: Client; questionnaire: Questionnaire }) {
+function ClientLinkActions({
+  client,
+  questionnaire,
+  onNoContactAfterCopy,
+}: {
+  client: Client;
+  questionnaire: Questionnaire;
+  onNoContactAfterCopy: () => void;
+}) {
   const [copiedItem, setCopiedItem] = useState<"url" | "md" | null>(null);
 
   function copyUrl() {
     navigator.clipboard.writeText(`${window.location.origin}/client/${client.slug}`);
     setCopiedItem("url");
     setTimeout(() => setCopiedItem((v) => (v === "url" ? null : v)), 1200);
+    if (client.contact_emails.length === 0) {
+      onNoContactAfterCopy();
+    }
   }
 
   function copyMarkdown() {
